@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { processCheckout } from "@/actions/checkout";
+import QRISInvoice from "./QRISInvoice"; // Pastikan path import ini sesuai
 
 // Menggunakan font Plus Jakarta Sans untuk tampilan modern, bersih, dan premium
 const fontSans = Plus_Jakarta_Sans({
@@ -32,6 +33,7 @@ export default function CheckoutClient({
 }: CheckoutClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [invoiceData, setInvoiceData] = useState<any>(null); // State baru untuk menyimpan data QRIS
 
   // ==========================================
   // SMART DETECTOR: DETEKSI TIPE PRODUK
@@ -41,8 +43,6 @@ export default function CheckoutClient({
 
   // ==========================================
   // AUTO-FILL LOGIC:
-  // Jika sedang login dan tipe produk adalah INVITE, 
-  // email otomatis terisi. Nomor WhatsApp juga otomatis terisi.
   // ==========================================
   const [targetId, setTargetId] = useState(isInviteType ? defaultEmail : "");
   const [whatsapp, setWhatsapp] = useState(defaultPhone);
@@ -55,8 +55,6 @@ export default function CheckoutClient({
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Jika BUKAN invite (Private/Akun), kita otomatis menggunakan nomor WhatsApp sebagai TargetID
-    // agar API provider (data_no) & validasi tidak error.
     const finalTargetId = isInviteType ? targetId : whatsapp;
 
     if (isInviteType && !finalTargetId) {
@@ -81,17 +79,20 @@ export default function CheckoutClient({
     if (variantId) formData.append("variantId", variantId);
     formData.append("targetId", finalTargetId);
     formData.append("whatsapp", whatsapp);
+    formData.append("method", "qris"); // Pastikan method QRIS dikirim ke server action
 
     try {
       const res = await processCheckout(formData);
       clearInterval(stepInterval);
 
-      if (res.success && res.paymentUrl) {
+      // Asumsi: Action server sekarang mengembalikan { success: true, payment: {...dataPakasir} }
+      if (res.success && res.payment) {
         setLoadingStep(4);
-        toast.success(res.message, { icon: "🔒" });
+        toast.success("Invoice berhasil dibuat!", { icon: "🔒" });
 
+        // Tampilkan QRIS secara halus setelah animasi selesai
         setTimeout(() => {
-          window.location.href = res.paymentUrl;
+          setInvoiceData(res.payment);
         }, 600);
       } else {
         toast.error(res.message || "Gagal memproses transaksi.");
@@ -110,12 +111,37 @@ export default function CheckoutClient({
     switch (loadingStep) {
       case 1: return "Mengamankan Data...";
       case 2: return "Mendaftarkan Invoice...";
-      case 3: return "Memproses Transaksi..."; // Putih-bersih tanpa nama gateway luar
-      case 4: return "Mengarahkan...";
+      case 3: return "Menerbitkan QRIS...";
+      case 4: return "Menyiapkan Pembayaran...";
       default: return "Bayar Sekarang";
     }
   };
 
+  // ==========================================
+  // RENDER VIEW: TAMPILAN INVOICE QRIS
+  // ==========================================
+  if (invoiceData) {
+    return (
+      <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}>
+        {/* Navigation dipertahankan agar user tetap merasa di halaman yang sama */}
+        <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-bold text-emerald-900/70 bg-emerald-900/[0.04] px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-emerald-900/10 shadow-sm">
+              <i className="ri-shield-keyhole-fill text-emerald-700"></i> Menunggu Pembayaran
+            </div>
+          </div>
+        </nav>
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 md:pt-14">
+          <QRISInvoice paymentData={invoiceData} />
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // RENDER VIEW: TAMPILAN CHECKOUT FORM UTAMA
+  // ==========================================
   return (
     <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}>
       
@@ -208,7 +234,7 @@ export default function CheckoutClient({
                     </>
                   ) : (
                     <>
-                      <i className="ri-secure-payment-fill text-xl"></i> Lanjutkan Pembayaran
+                      <i className="ri-qr-code-line text-xl"></i> Bayar dengan QRIS
                     </>
                   )}
                 </button>
@@ -230,7 +256,6 @@ export default function CheckoutClient({
           <div className="order-2 lg:order-1 lg:col-span-7 space-y-6 md:space-y-8">
             
             {isInviteType ? (
-              // FORM JIKA JENIS PRODUK ADALAH INVITE LINK (Meminta Input Email)
               <div className="bg-white p-6 md:p-8 rounded-[28px] border border-emerald-900/10 shadow-[0_4px_24px_rgba(10,31,26,0.04)]">
                 <div className="flex items-center gap-3 mb-6 border-b border-emerald-900/[0.06] pb-4">
                   <div className="w-9 h-9 rounded-full border border-emerald-700/30 text-emerald-800 flex items-center justify-center font-bold text-base">
@@ -265,7 +290,6 @@ export default function CheckoutClient({
                 </div>
               </div>
             ) : (
-              // NOTIFIKASI INFO ELEGAN JIKA JENIS PRODUK ADALAH AKUN / PRIVATE / VOUCHER
               <div className="bg-gradient-to-br from-emerald-50 to-[#F7F5EF] p-6 md:p-8 rounded-[28px] border border-emerald-900/10 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-600 via-[#C8A24D] to-emerald-600" />
                 <div className="flex items-center gap-3 mb-4 border-b border-emerald-900/10 pb-4">
@@ -287,7 +311,6 @@ export default function CheckoutClient({
               </div>
             )}
 
-            {/* FORM INPUT WHATSAPP (SELALU MUNCUL) */}
             <div className="bg-white p-6 md:p-8 rounded-[28px] border border-emerald-900/10 shadow-[0_4px_24px_rgba(10,31,26,0.04)]">
               <div className="flex items-center gap-3 mb-6 border-b border-emerald-900/[0.06] pb-4">
                 <div className="w-9 h-9 rounded-full border border-emerald-700/30 text-emerald-800 flex items-center justify-center font-bold text-base">
@@ -329,7 +352,6 @@ export default function CheckoutClient({
         </form>
       </div>
 
-      {/* Efek Stamp Animasi Loading */}
       <style jsx>{`
         @keyframes sealStamp {
           0% { transform: scale(2) rotate(-12deg); opacity: 0; }
