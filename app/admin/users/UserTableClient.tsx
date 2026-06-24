@@ -30,7 +30,7 @@ export default function UserTableClient({ initialUsers }: { initialUsers: any[] 
 
   // === FUNGSI: UBAH LEVEL AKSES (ROLE) ===
   const handleRoleChange = async (userId: string, currentRole: string) => {
-    const newRole = currentRole === "ADMIN" ? "EMPLOYEE" : "ADMIN";
+    const newRole = currentRole === "ADMIN" ? "USER" : "ADMIN";
     if (!window.confirm(`Yakin ingin mengubah hak akses pengguna ini menjadi ${newRole}?`)) return;
 
     const toastId = toast.loading("Memperbarui hak akses...");
