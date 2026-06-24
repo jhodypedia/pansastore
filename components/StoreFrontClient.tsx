@@ -225,7 +225,11 @@ function TestimonialsSection() {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function StorefrontClient({ initialProducts }: { initialProducts: Product[] }) {
+export default function StorefrontClient({ 
+  initialProducts, 
+  isLoggedIn = false, 
+  userRole = null 
+}: {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("SEMUA");
   const [isScrolled, setIsScrolled] = useState(false);
