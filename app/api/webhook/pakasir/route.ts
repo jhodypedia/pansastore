@@ -57,45 +57,43 @@ export async function POST(request: Request) {
         where: { id: transaction.id },
         data: { 
           paymentStatus: "COMPLETED",
-          // Jika sistem Pansa Group Anda memiliki status webhook lain untuk proses ke Premify
+          // Anda bisa mengubah premifyStatus jika ada proses webhook lanjutan
           // premifyStatus: "PROCESSING" 
         },
       });
 
-      // 5. Eksekusi Pengiriman Otomatis (Aset Digital / Notifikasi) via WhatsApp
+      // 5. Eksekusi Pengiriman Otomatis Notifikasi via WhatsApp
       try {
         let productName = "Produk Digital";
         let targetId = "Pelanggan";
         
-        // Ekstrak detail produk jika Anda menyimpannya sebagai JSON string
+        // Ekstrak detail produk jika tersimpan sebagai JSON string
         if (transaction.productDetails) {
-          const details = JSON.stringify(transaction.productDetails); // Sesuaikan jika Anda mem-parsing JSON
-          const parsed = JSON.parse(details as string);
+          const details = transaction.productDetails;
+          const parsed = typeof details === "string" ? JSON.parse(details) : details;
           productName = parsed.name || productName;
           targetId = parsed.targetId || targetId;
         }
 
-        // Susun pesan sukses. (Pastikan WATemplates.paymentSuccess sudah ada di lib/whatsapp Anda)
-        const successMessage = WATemplates.paymentSuccess(
+        // MENGGUNAKAN TEMPLATE orderCompleted YANG ADA DI SISTEM ANDA
+        const successMessage = WATemplates.orderCompleted(
           order_id,
           productName,
           targetId
         );
 
-        // Kirim via bot Baileys Anda
+        // Kirim via bot Baileys
         await sendWhatsAppMessage(transaction.customerPhone, successMessage);
         console.log(`[Webhook Pakasir] ✅ Pembayaran ${order_id} sukses. Pesan WA terkirim.`);
 
       } catch (waError) {
-        // Jika WA gagal, transaksi tetap dicatat sukses, tapi kita log error-nya
         console.error(`[Webhook Pakasir] ⚠️ Pembayaran sukses tapi gagal kirim WA untuk ${order_id}:`, waError);
       }
 
-      // Berikan respons 200 OK agar server Pakasir tahu webhook berhasil diterima
+      // Berikan respons 200 OK
       return NextResponse.json({ success: true, message: "Webhook berhasil diproses." });
       
     } else {
-      // Jika verifikasi gagal (kemungkinan manipulasi data)
       console.warn(`[Webhook Pakasir] 🚨 Verifikasi gagal untuk order_id: ${order_id}`);
       return NextResponse.json({ error: "Verifikasi transaksi gagal" }, { status: 400 });
     }
