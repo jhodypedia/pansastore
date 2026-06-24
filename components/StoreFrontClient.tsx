@@ -224,7 +224,8 @@ function TestimonialsSection() {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────export default function StorefrontClient({ 
+// ─── Main Component ───────────────────────────────────────────────────────────
+export default function StorefrontClient({ 
   initialProducts, 
   isLoggedIn = false, 
   userRole = null 
