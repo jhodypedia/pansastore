@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
+import { pakasirSDK } from "@/lib/pakasir"; // Pastikan path file SDK Pakasir ini sesuai
 
 export async function processCheckout(formData: FormData) {
   try {
@@ -9,15 +10,16 @@ export async function processCheckout(formData: FormData) {
     const variantId = formData.get("variantId") as string;
     const targetId = formData.get("targetId") as string;
     const whatsapp = formData.get("whatsapp") as string;
+    const method = (formData.get("method") as string) || "qris";
 
     // 1. Validasi Input Dasar Lengkap
     if (!targetId || !whatsapp || !productId) {
       return { success: false, message: "Data tidak lengkap. Harap isi ID Tujuan dan WhatsApp." };
     }
 
-    // 2. Ambil Kredensial API DompetX dari Database AppSetting
+    // 2. Ambil Kredensial API Pakasir dari Database AppSetting
     const settings = await prisma.appSetting.findFirst();
-    if (!settings || !settings.dompetxApiKey) {
+    if (!settings || !settings.pakasirApiKey || !settings.pakasirProjectSlug) {
       return { success: false, message: "Sistem pembayaran sedang dalam pemeliharaan (API Key belum diatur)." };
     }
 
@@ -58,35 +60,20 @@ export async function processCheckout(formData: FormData) {
       }
     });
 
-    // 6. Konfigurasi Endpoint Payload Resmi DompetX Pembayaran
-    const DOMPETX_ENDPOINT = "https://api.dompetx.com/v1/create-payment"; 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const returnUrl = `${appUrl}/cek-pesanan?invoice=${invoiceId}`;
-
-    const dompetxPayload = {
-      api_key: settings.dompetxApiKey,
-      merchant_order_id: invoiceId,
+    // 6. Request QRIS ke Gateway Pakasir via SDK
+    const paymentResult = await pakasirSDK.createQris({
+      project: settings.pakasirProjectSlug,
+      api_key: settings.pakasirApiKey,
+      order_id: invoiceId,
       amount: finalPrice,
-      customer_name: targetId,
-      customer_phone: whatsapp,
-      return_url: returnUrl
-    };
-
-    // 7. Tembak HTTP Request POST ke Gateway DompetX
-    const response = await fetch(DOMPETX_ENDPOINT, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(dompetxPayload),
-      cache: 'no-store'
     });
 
-    const dompetxRes = await response.json();
-
-    // 8. Evaluasi Kebenaran Hasil Handshake Gateway
-    if (response.ok && dompetxRes.status === 'success' && dompetxRes.payment_url) {
+    // 7. Evaluasi Kebenaran Hasil Handshake Gateway
+    if (paymentResult.ok && paymentResult.data?.payment) {
+      
+      // Karena Pakasir QRIS dirender di halaman yang sama, link URL diarahkan ke halaman pelacakan pesanan Anda
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${invoiceId}`;
       
       // KIRIM NOTIFIKASI INVOICE PEMBAYARAN VIA BOT WHATSAPP BAILEYS INTERNAL
       const waMessage = WATemplates.invoiceCreated(
@@ -94,7 +81,7 @@ export async function processCheckout(formData: FormData) {
         product.name, 
         targetId, 
         finalPrice.toLocaleString('id-ID'), 
-        dompetxRes.payment_url
+        invoiceUrl 
       );
       
       // Kirim asinkron (background process) agar eksekusi halaman tidak tertunda lama
@@ -104,12 +91,12 @@ export async function processCheckout(formData: FormData) {
 
       return { 
         success: true, 
-        paymentUrl: dompetxRes.payment_url, 
-        message: "Invoice berhasil dibuat! Mengarahkan ke gerbang pembayaran aman..." 
+        payment: paymentResult.data.payment, // Kirim objek payment untuk QRISInvoice
+        message: "Invoice berhasil dibuat! Menyiapkan QRIS aman..." 
       };
     } else {
-      // Jika API Key tidak sah atau server DompetX menolak
-      console.error("[DOMPETX API GATEWAY REJECTION]:", dompetxRes);
+      // Jika API Key tidak sah atau server Pakasir menolak
+      console.error("[PAKASIR API GATEWAY REJECTION]:", paymentResult.data);
       
       await prisma.transaction.update({
         where: { invoiceId },
@@ -118,7 +105,7 @@ export async function processCheckout(formData: FormData) {
       
       return { 
         success: false, 
-        message: dompetxRes.message || "Gerbang pembayaran DompetX sedang sibuk. Silakan coba sesaat lagi." 
+        message: paymentResult.data?.message || "Gerbang pembayaran Pakasir sedang sibuk. Silakan coba sesaat lagi." 
       };
     }
   } catch (error) {
