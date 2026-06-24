@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { processCheckout } from "@/actions/checkout";
-import QRISInvoice from "./QRISInvoice"; // Pastikan path import ini sesuai
+import QRISInvoice from "@/components/QRISInvoice"; // Pastikan path import ini sesuai
 
 // Menggunakan font Plus Jakarta Sans untuk tampilan modern, bersih, dan premium
 const fontSans = Plus_Jakarta_Sans({
