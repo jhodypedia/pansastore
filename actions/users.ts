@@ -39,7 +39,7 @@ export async function addUser(formData: FormData) {
 }
 
 // 2. UBAH HAK AKSES (Update Role)
-export async function updateUserRole(userId: string, newRole: "ADMIN" | "EMPLOYEE") {
+export async function updateUserRole(userId: string, newRole: "ADMIN" | "USER") {
   try {
     await prisma.user.update({
       where: { id: userId },
