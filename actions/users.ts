@@ -10,7 +10,7 @@ export async function addUser(formData: FormData) {
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const role = formData.get("role") as "ADMIN" | "EMPLOYEE";
+    const role = formData.get("role") as "ADMIN" | "USER";
 
     // Validasi email
     const existingUser = await prisma.user.findUnique({ where: { email } });
