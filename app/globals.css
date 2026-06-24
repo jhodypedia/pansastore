@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Background murni putih, teks abu-abu sangat gelap */
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    /* Card flat */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    /* PRIMARY: Hijau Tua Premium (Forest Green) */
+    --primary: 158 46% 23%;
+    --primary-foreground: 210 40% 98%;
+
+    /* SECONDARY: Hijau Muda yang sangat halus */
+    --secondary: 158 30% 90%;
+    --secondary-foreground: 158 46% 15%;
+
+    /* Muted untuk teks sekunder */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    /* Warna Aksen untuk hover */
+    --accent: 158 30% 92%;
+    --accent-foreground: 158 46% 15%;
+
+    /* Warna Destructive untuk error */
+    --destructive: 0 70% 40%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Border tegas dan tipis */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 158 46% 23%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    border-width: 0;
+    border-style: solid;
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Animasi Kustom & Utilities */
+@layer utilities {
+  .glass-card {
+    @apply bg-white border border-slate-200 transition-all duration-300;
+  }
+  
+  /* HAPUS KODE box-shadow: none DI SINI AGAR EFEK PREMIUM MUNCUL */
+
+  .animate-fade-up {
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+/* Efek Fade Up Premium */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sembunyikan Scrollbar Horizontal di Kategori HP tapi tetap bisa digeser */
+.hide-scrollbar-on-mobile::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar-on-mobile {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
