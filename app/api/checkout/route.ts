@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import crypto from 'crypto';
+import { pakasirSDK } from '@/lib/pakasir'; // Menggunakan SDK yang sudah kita buat
 
 export async function POST(request: Request) {
   try {
-    const { variant_id, customerPhone, method = "QRIS" } = await request.json();
+    // Memastikan default method adalah 'qris'
+    const { variant_id, customerPhone, method = "qris" } = await request.json();
 
-    // Ambil setting dan produk
+    // 1. Ambil setting dan produk dari database
     const settings = await prisma.appSetting.findFirst();
     const product = await prisma.product.findUnique({
       where: { id: variant_id },
     });
 
-    if (!settings?.dompetxApiKey || !product) {
+    // Validasi kesiapan sistem
+    if (!settings?.pakasirApiKey || !settings?.pakasirProjectSlug || !product) {
       return NextResponse.json({
         success: false,
         message: "Sistem belum siap atau produk tidak ditemukan",
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
     const referenceId = `PANSA-${Date.now()}`;
     const amount = product.sellPrice;
 
-    // Buat transaksi di database
+    // 2. Buat transaksi di database
     await prisma.transaction.create({
       data: {
         invoiceId: referenceId,
@@ -31,48 +33,59 @@ export async function POST(request: Request) {
         amount,
         paymentStatus: "PENDING",
         premifyStatus: "PENDING",
+        // Menggunakan format JSON productDetails sesuai dengan schema terbaru Anda
+        productDetails: JSON.stringify({
+          name: product.name,
+          targetId: customerPhone, // Asumsi default targetId adalah nomor HP
+        }),
       },
     });
 
-    // Buat signature untuk DompetX
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const payload = JSON.stringify({
-      method,
-      amount,
-      currency: "IDR",
-      reference: referenceId,
-    });
+    // 3. Panggil API Pakasir menggunakan SDK
+    let paymentResult;
+    
+    if (method.toLowerCase() === "qris") {
+      paymentResult = await pakasirSDK.createQris({
+        project: settings.pakasirProjectSlug,
+        api_key: settings.pakasirApiKey,
+        order_id: referenceId,
+        amount: amount,
+      });
+    } else {
+      return NextResponse.json({
+        success: false,
+        message: `Metode pembayaran ${method} belum didukung`,
+      }, { status: 400 });
+    }
 
-    const signature = crypto
-      .createHmac("sha256", settings.dompetxApiKey)
-      .update(`${timestamp}.${payload}`)
-      .digest("hex");
+    // 4. Tangani respons dari Pakasir
+    if (!paymentResult.ok || !paymentResult.data?.payment) {
+       console.error("[Pakasir API Error]:", paymentResult.data);
+       
+       // Update status menjadi FAILED jika gateway menolak
+       await prisma.transaction.update({
+         where: { invoiceId: referenceId },
+         data: { paymentStatus: "FAILED" },
+       });
 
-    // Panggil API DompetX
-    const dompetxRes = await fetch("https://api.dompetx.com/v1/payments", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-DOMPAY-API-Key": settings.dompetxApiKey,
-        "X-DOMPAY-Signature": signature,
-        "X-DOMPAY-Timestamp": timestamp,
-      },
-      body: payload,
-    });
+       return NextResponse.json({
+         success: false,
+         message: paymentResult.data?.message || "Gagal membuat transaksi di payment gateway",
+       }, { status: 400 });
+    }
 
-    const paymentData = await dompetxRes.json();
-
+    // 5. Kembalikan data payment ke client
     return NextResponse.json({
       success: true,
-      payment: paymentData,
+      payment: paymentResult.data.payment, 
       referenceId,
     });
 
-  } catch (error) {
-    console.error("[Checkout Error]:", error);
+  } catch (error: any) {
+    console.error("[API Checkout Error]:", error.message || error);
     return NextResponse.json({
       success: false,
-      message: "Checkout Error",
+      message: "Terjadi kesalahan internal pada server checkout",
     }, { status: 500 });
   }
 }
