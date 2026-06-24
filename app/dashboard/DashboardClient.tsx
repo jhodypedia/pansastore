@@ -17,61 +17,98 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ user, transactions }: DashboardClientProps) {
-  
   const handleLogout = async () => {
     const toastId = toast.loading("Keluar dari sistem...");
     await signOut({ callbackUrl: "/login" });
     toast.success("Berhasil keluar", { id: toastId });
   };
 
-  // Fungsi pembantu warna status DompetX
+  // Fungsi pembantu warna status Pembayaran (Pakasir)
   const getPaymentBadge = (status: string) => {
-    switch (status) {
-      case "PAID": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "FAILED": return "bg-red-50 text-red-600 border-red-200";
-      default: return "bg-amber-50 text-amber-600 border-amber-200";
+    const upperStatus = status.toUpperCase();
+    if (upperStatus === "COMPLETED" || upperStatus === "PAID") {
+      return {
+        label: "LUNAS",
+        style: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        icon: "ri-check-double-line",
+      };
     }
+    if (upperStatus === "FAILED" || upperStatus === "EXPIRED") {
+      return {
+        label: "GAGAL",
+        style: "bg-red-50 text-red-600 border-red-200",
+        icon: "ri-close-circle-line",
+      };
+    }
+    return {
+      label: "MENUNGGU",
+      style: "bg-amber-50 text-amber-700 border-amber-200",
+      icon: "ri-time-line",
+    };
   };
 
-  // Fungsi pembantu warna status Premify
-  const getOrderBadge = (status: string) => {
-    switch (status) {
-      case "SUCCESS": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "FAILED": return "bg-red-50 text-red-600 border-red-200";
-      default: return "bg-blue-50 text-blue-600 border-blue-200";
+  // Fungsi pembantu warna status Pengiriman (Premify / Baileys)
+  const getDeliveryBadge = (status: string) => {
+    const upperStatus = status.toUpperCase();
+    if (upperStatus === "SUCCESS" || upperStatus === "COMPLETED") {
+      return {
+        label: "TERKIRIM",
+        style: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
     }
+    if (upperStatus === "FAILED") {
+      return {
+        label: "GAGAL KIRIM",
+        style: "bg-red-50 text-red-600 border-red-200",
+      };
+    }
+    if (upperStatus === "PROCESSING") {
+      return {
+        label: "DIPROSES",
+        style: "bg-blue-50 text-blue-700 border-blue-200",
+      };
+    }
+    return {
+      label: "PENDING",
+      style: "bg-slate-50 text-slate-500 border-slate-200",
+    };
   };
 
-  // Kalkulasi statistik sederhana
+  // Kalkulasi statistik
+  const validCompletedStatus = ["COMPLETED", "PAID"];
   const totalSpent = transactions
-    .filter(t => t.paymentStatus === "PAID")
+    .filter((t) => validCompletedStatus.includes(t.paymentStatus.toUpperCase()))
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const totalOrders = transactions.length;
 
   return (
-    <div className={`${fontSans.variable} min-h-screen bg-slate-50 font-sans selection:bg-emerald-200 selection:text-emerald-900`}>
-      
-      {/* NAVBAR */}
-      <nav className="bg-white border-b border-slate-200 py-4 sticky top-0 z-50 shadow-sm">
+    <div
+      className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}
+    >
+      {/* NAVIGATION - Premium Clean */}
+      <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-              <i className="ri-box-3-fill text-lg"></i>
-            </div>
-            <span className="font-extrabold text-slate-900 tracking-tight hidden sm:block">
-              PANSA<span className="text-emerald-700">STORE</span>
+            <span className="w-9 h-9 rounded-full bg-[#0A1F1A] flex items-center justify-center text-emerald-300 shadow-sm group-hover:-translate-x-0.5 transition-transform">
+              <i className="ri-arrow-left-line text-lg"></i>
+            </span>
+            <span className="font-extrabold text-[#0A1F1A] tracking-tight hidden sm:block">
+              PANSA<span className="text-emerald-600">STORE</span>
             </span>
           </Link>
-          
+
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm font-bold text-slate-500 hover:text-emerald-700 transition-colors hidden sm:block">
-              Ke Etalase
+            <Link
+              href="/"
+              className="text-[13px] font-bold text-emerald-900/50 hover:text-[#0A1F1A] transition-colors hidden sm:block"
+            >
+              Belanja Lagi
             </Link>
-            <div className="w-px h-5 bg-slate-200 hidden sm:block"></div>
-            <button 
+            <div className="w-px h-5 bg-emerald-900/10 hidden sm:block"></div>
+            <button
               onClick={handleLogout}
-              className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-full text-xs font-bold transition-colors border border-red-100"
+              className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-full text-xs font-bold transition-all border border-red-100 active:scale-95"
             >
               <i className="ri-logout-circle-line"></i> Keluar
             </button>
@@ -79,130 +116,199 @@ export default function DashboardClient({ user, transactions }: DashboardClientP
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-20">
-        
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 md:pt-12">
+        <div className="flex items-center gap-2 text-[10px] md:text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700/80 mb-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+          Area Pengguna
+        </div>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-[#0A1F1A] tracking-tight mb-8">
+          Dashboard Saya
+        </h1>
+
         {/* HEADER & PROFILE CARD */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          
-          <div className="lg:col-span-2 bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full filter blur-[80px] opacity-60 pointer-events-none"></div>
-            
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-10">
+          {/* USER INFO */}
+          <div className="lg:col-span-2 bg-white rounded-[28px] p-6 md:p-8 border border-emerald-900/10 shadow-[0_4px_24px_rgba(10,31,26,0.04)] relative overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-48 h-48 bg-emerald-600/10 rounded-full blur-[60px] pointer-events-none"></div>
+
             <div className="relative z-10">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center text-2xl font-black text-emerald-800">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 mb-6">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#0A1F1A] to-emerald-800 flex items-center justify-center text-2xl font-black text-white shadow-md shrink-0">
                   {user.name ? user.name.charAt(0).toUpperCase() : "U"}
                 </div>
                 <div>
-                  <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Halo, {user.name}</h1>
-                  <p className="text-slate-500 font-medium text-sm flex items-center gap-1.5 mt-0.5">
-                    <i className="ri-mail-line text-emerald-600"></i> {user.email}
-                  </p>
+                  <h2 className="text-2xl font-extrabold text-[#0A1F1A] tracking-tight">
+                    {user.name}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1.5">
+                    <p className="text-emerald-900/60 font-semibold text-sm flex items-center gap-1.5">
+                      <i className="ri-mail-fill text-emerald-600/50"></i> {user.email}
+                    </p>
+                    {user.phone && (
+                      <p className="text-emerald-900/60 font-semibold text-sm flex items-center gap-1.5">
+                        <i className="ri-whatsapp-fill text-emerald-600/50"></i> {user.phone}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {!user.phone && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 mt-4">
-                  <i className="ri-error-warning-fill text-amber-500 text-lg"></i>
+                <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-4 flex items-start gap-3 mt-4">
+                  <i className="ri-error-warning-fill text-amber-500 text-xl mt-0.5 shrink-0"></i>
                   <div>
-                    <h4 className="text-sm font-bold text-amber-800">Nomor WhatsApp Belum Diatur</h4>
-                    <p className="text-xs text-amber-700 mt-1 font-medium">Sistem tidak dapat melacak riwayat transaksi Anda secara otomatis. Harap perbarui nomor WhatsApp Anda jika ingin melihat riwayat pesanan.</p>
+                    <h4 className="text-sm font-bold text-amber-900">
+                      Nomor WhatsApp Belum Terhubung
+                    </h4>
+                    <p className="text-xs text-amber-800/80 mt-1 font-medium leading-relaxed">
+                      Riwayat transaksi otomatis dilacak berdasarkan nomor WhatsApp Anda saat melakukan checkout.
+                    </p>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* STATS CARD */}
-          <div className="bg-slate-900 rounded-3xl p-8 border border-slate-800 shadow-lg text-white relative overflow-hidden flex flex-col justify-center">
-            <div className="absolute bottom-0 right-0 w-32 h-32 bg-emerald-500 rounded-full filter blur-[60px] opacity-20 pointer-events-none"></div>
-            
-            <div className="mb-6">
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pembelanjaan</p>
-              <h2 className="text-3xl font-black text-emerald-400 tracking-tight">
-                <span className="text-lg text-emerald-500 mr-1">Rp</span>
-                {totalSpent.toLocaleString('id-ID')}
+          {/* STATS CARD (DARK THEME) */}
+          <div className="bg-[#0A1F1A] rounded-[28px] p-6 md:p-8 shadow-[0_20px_40px_-15px_rgba(10,31,26,0.3)] text-white relative overflow-hidden flex flex-col justify-center">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-600/20 rounded-full blur-[50px] pointer-events-none"></div>
+
+            <div className="mb-6 relative z-10">
+              <p className="text-emerald-300/50 text-[10px] font-bold uppercase tracking-widest mb-1">
+                Total Pembelanjaan
+              </p>
+              <h2 className="text-3xl font-black text-emerald-400 tracking-tight flex items-baseline gap-1">
+                <span className="text-base text-emerald-400/60 font-bold">Rp</span>
+                {totalSpent.toLocaleString("id-ID")}
               </h2>
             </div>
-            
-            <div>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pesanan</p>
-              <h2 className="text-2xl font-bold text-white">
-                {totalOrders} <span className="text-sm font-medium text-slate-500">Transaksi</span>
+
+            <div className="relative z-10">
+              <p className="text-emerald-300/50 text-[10px] font-bold uppercase tracking-widest mb-1">
+                Pesanan Berhasil
+              </p>
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                {totalOrders}{" "}
+                <span className="text-xs font-semibold text-white/40 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">
+                  Transaksi
+                </span>
               </h2>
             </div>
           </div>
-
         </div>
 
         {/* TRANSACTION HISTORY */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <i className="ri-history-line text-emerald-600"></i> Riwayat Pesanan
+        <div className="bg-white rounded-[28px] border border-emerald-900/10 shadow-[0_4px_24px_rgba(10,31,26,0.04)] overflow-hidden">
+          <div className="p-6 md:p-8 border-b border-emerald-900/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 className="text-lg font-extrabold text-[#0A1F1A] flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i className="ri-history-line"></i>
+              </div>
+              Riwayat Pembelian Terakhir
             </h3>
-            {user.phone && (
-              <span className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-                Terhubung via: {user.phone}
-              </span>
-            )}
           </div>
 
           {transactions.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-4xl mx-auto mb-4">
-                <i className="ri-shopping-cart-2-line"></i>
+            <div className="p-12 md:p-16 text-center">
+              <div className="w-20 h-20 bg-[#F7F5EF] rounded-full flex items-center justify-center text-emerald-900/20 text-4xl mx-auto mb-5 border border-emerald-900/5">
+                <i className="ri-shopping-bag-3-fill"></i>
               </div>
-              <h4 className="text-slate-900 font-bold text-lg mb-1">Belum ada transaksi</h4>
-              <p className="text-slate-500 text-sm font-medium mb-6">Anda belum memiliki riwayat pembelian yang terhubung dengan nomor HP ini.</p>
-              <Link href="/" className="inline-flex items-center gap-2 bg-emerald-800 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-emerald-700 transition-colors">
-                Mulai Belanja
+              <h4 className="text-[#0A1F1A] font-extrabold text-xl mb-2">
+                Belum Ada Transaksi
+              </h4>
+              <p className="text-emerald-900/50 text-sm font-medium mb-8 max-w-sm mx-auto">
+                Riwayat pesanan yang menggunakan nomor WhatsApp Anda akan otomatis muncul di sini.
+              </p>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-emerald-500 transition-all shadow-md active:scale-95"
+              >
+                Mulai Belanja Sekarang
               </Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100">
-                    <th className="p-4 md:p-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Invoice / Tanggal</th>
-                    <th className="p-4 md:p-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Detail Produk</th>
-                    <th className="p-4 md:p-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Total</th>
-                    <th className="p-4 md:p-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status Bayar</th>
-                    <th className="p-4 md:p-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Pengiriman</th>
+                  <tr className="bg-[#F7F5EF]/50 border-b border-emerald-900/5">
+                    <th className="p-4 md:px-8 py-4 text-[10px] font-bold text-emerald-900/40 uppercase tracking-widest whitespace-nowrap">
+                      ID Tagihan
+                    </th>
+                    <th className="p-4 py-4 text-[10px] font-bold text-emerald-900/40 uppercase tracking-widest">
+                      Detail Produk
+                    </th>
+                    <th className="p-4 py-4 text-[10px] font-bold text-emerald-900/40 uppercase tracking-widest">
+                      Total Bayar
+                    </th>
+                    <th className="p-4 py-4 text-[10px] font-bold text-emerald-900/40 uppercase tracking-widest">
+                      Status
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-emerald-900/5">
                   {transactions.map((trx) => {
                     let productData: any = {};
                     try {
                       productData = JSON.parse(trx.productDetails || "{}");
                     } catch (e) {}
 
+                    const paymentBadge = getPaymentBadge(trx.paymentStatus);
+                    const deliveryBadge = getDeliveryBadge(trx.premifyStatus);
+
                     return (
-                      <tr key={trx.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-4 md:p-5">
-                          <Link href={`/cek-pesanan?invoice=${trx.invoiceId}`} className="font-extrabold text-emerald-700 hover:text-emerald-800 text-sm tracking-tight block">
+                      <tr
+                        key={trx.id}
+                        className="hover:bg-[#F7F5EF]/50 transition-colors group"
+                      >
+                        <td className="p-4 md:px-8 py-5">
+                          <Link
+                            href={`/cek-pesanan?invoice=${trx.invoiceId}`}
+                            className="font-extrabold text-[#0A1F1A] hover:text-emerald-600 text-sm tracking-tight flex items-center gap-1.5 transition-colors"
+                          >
                             {trx.invoiceId}
+                            <i className="ri-external-link-line text-[10px] text-emerald-900/30 group-hover:text-emerald-600"></i>
                           </Link>
-                          <span className="text-[11px] text-slate-500 font-medium">
-                            {new Date(trx.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </span>
+                          <div className="text-[11px] text-emerald-900/50 font-medium mt-1 flex items-center gap-1">
+                            <i className="ri-calendar-event-line"></i>
+                            {new Date(trx.createdAt).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </div>
                         </td>
-                        <td className="p-4 md:p-5">
-                          <div className="font-bold text-slate-900 text-sm line-clamp-1">{productData.name || "Produk PansaStore"}</div>
-                          <div className="text-[11px] text-slate-500 font-medium mt-0.5">Tujuan: {productData.targetId || "-"}</div>
+                        <td className="p-4 py-5">
+                          <div className="font-bold text-[#0A1F1A] text-sm line-clamp-1">
+                            {productData.name || "Produk PansaStore"}
+                          </div>
+                          <div className="text-[11px] text-emerald-900/50 font-medium mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                            <i className="ri-user-received-2-line text-emerald-600"></i>
+                            {productData.targetId || "Tidak ada ID Tujuan"}
+                          </div>
                         </td>
-                        <td className="p-4 md:p-5 font-extrabold text-slate-900 text-sm">
-                          Rp {trx.amount.toLocaleString('id-ID')}
+                        <td className="p-4 py-5 font-extrabold text-[#0A1F1A] text-sm">
+                          Rp {trx.amount.toLocaleString("id-ID")}
                         </td>
-                        <td className="p-4 md:p-5">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getPaymentBadge(trx.paymentStatus)}`}>
-                            {trx.paymentStatus === 'PENDING' ? 'Belum Lunas' : trx.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="p-4 md:p-5">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getOrderBadge(trx.premifyStatus)}`}>
-                            {trx.premifyStatus}
-                          </span>
+                        <td className="p-4 py-5">
+                          <div className="flex flex-col gap-2 items-start">
+                            {/* Lencana Pembayaran */}
+                            <span
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-extrabold tracking-widest border ${paymentBadge.style}`}
+                            >
+                              <i className={`${paymentBadge.icon}`}></i>
+                              {paymentBadge.label}
+                            </span>
+                            
+                            {/* Lencana Pengiriman Aset */}
+                            {(trx.paymentStatus.toUpperCase() === "COMPLETED" || trx.paymentStatus.toUpperCase() === "PAID") && (
+                              <span
+                                className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border ${deliveryBadge.style}`}
+                              >
+                                {deliveryBadge.label}
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -212,7 +318,6 @@ export default function DashboardClient({ user, transactions }: DashboardClientP
             </div>
           )}
         </div>
-
       </main>
     </div>
   );
