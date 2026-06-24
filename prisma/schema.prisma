@@ -24,12 +24,13 @@ model User {
 }
 
 model AppSetting {
-  id             Int      @id @default(1)
-  dompetxApiKey  String?  @db.Text
-  premifyApiKey  String?  @db.Text
-  globalMarkup   Float    @default(0)
-  isRegisterOpen Boolean  @default(true)
-  updatedAt      DateTime @updatedAt
+  id                 Int      @id @default(1)
+  pakasirApiKey      String?  @db.Text
+  pakasirProjectSlug String?  @db.Text
+  premifyApiKey      String?  @db.Text
+  globalMarkup       Float    @default(0)
+  isRegisterOpen     Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
 }
 
 model Product {
