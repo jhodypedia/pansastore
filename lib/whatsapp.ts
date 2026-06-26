@@ -2,18 +2,12 @@ import { makeWASocket, useMultiFileAuthState, DisconnectReason } from 'baileys';
 import { Boom } from '@hapi/boom';
 import path from 'path';
 
-// ==========================================
-// 1. TAMBAHKAN DEKLARASI GLOBAL INI (OBAT ERROR MERAH)
-// ==========================================
 declare global {
   var waStatus: string;
   var waQrCode: string;
   var waSocket: any;
 }
 
-// ==========================================
-// 2. INISIALISASI VARIABEL GLOBAL (Aman dari peringatan Next.js HMR)
-// ==========================================
 global.waStatus = global.waStatus || 'DISCONNECTED';
 global.waQrCode = global.waQrCode || '';
 global.waSocket = global.waSocket || null;
@@ -28,16 +22,16 @@ export async function startWhatsAppBot() {
   const sock = makeWASocket({
     auth: state,
     printQRInTerminal: false,
-    browser: ['PANSA GROUP', 'Chrome', '1.0.0'],
+    browser: ['PansaStore', 'Chrome', '1.0.0'],
   });
 
   global.waSocket = sock;
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update;
-    
+
     if (qr) {
-      global.waQrCode = qr; 
+      global.waQrCode = qr;
       global.waStatus = 'QR_READY';
     }
 
@@ -49,7 +43,7 @@ export async function startWhatsAppBot() {
     } else if (connection === 'open') {
       global.waStatus = 'CONNECTED';
       global.waQrCode = '';
-      console.log('✅ WHATSAPP OTP Berhasil Terkoneksi!');
+      console.log('✅ WhatsApp PansaStore Berhasil Terkoneksi!');
     }
   });
 
@@ -63,17 +57,17 @@ export async function startWhatsAppBot() {
     const sender = msg.key.remoteJid;
 
     if (text?.toLowerCase() === 'ping') {
-      await sock.sendMessage(sender!, { text: 'Sistem WHATSAPP OTP berjalan dengan baik.' });
+      await sock.sendMessage(sender!, { text: '🟢 Sistem *PansaStore* berjalan normal. Siap melayani 24/7!' });
     }
   });
 }
 
 export async function sendWhatsAppMessage(phone: string, message: string) {
   if (global.waStatus !== 'CONNECTED' || !global.waSocket) return false;
-  
+
   let formattedPhone = phone.startsWith('0') ? '62' + phone.slice(1) : phone;
   const jid = `${formattedPhone}@s.whatsapp.net`;
-  
+
   try {
     await global.waSocket.sendMessage(jid, { text: message });
     return true;
@@ -83,66 +77,117 @@ export async function sendWhatsAppMessage(phone: string, message: string) {
 }
 
 // ==========================================
-// TEMPLATE PESAN WHATSAPP SUPER PREMIUM
+// TEMPLATE PESAN WHATSAPP PANSASTORE
 // ==========================================
 export const WATemplates = {
-  // 1. Pesan saat pelanggan selesai membuat pesanan (Belum Bayar)
-  invoiceCreated: (invoiceId: string, productName: string, targetId: string, price: string, paymentUrl: string) => `
-*INVOICE PANSASTORE* 🟢
+
+  // 1. Invoice dibuat, menunggu pembayaran
+  invoiceCreated: (
+    invoiceId: string,
+    productName: string,
+    targetId: string,
+    price: string,
+    paymentUrl: string
+  ) => `
+╔════════════════════╗
+  🛒 *INVOICE PANSASTORE*
+╚════════════════════╝
+
+Halo Kak! 👋 Terima kasih telah berbelanja di *PansaStore*.
+Berikut rincian pesanan Anda:
+
+🧾 *No. Invoice* : ${invoiceId}
+📦 *Produk*      : ${productName}
+🎯 *ID Tujuan*   : ${targetId}
+💰 *Total*       : Rp ${price}
+⏳ *Status*      : MENUNGGU PEMBAYARAN
+
 ━━━━━━━━━━━━━━━━━━━━
-Halo Kak! Terima kasih telah berbelanja di *PansaStore*. Pesanan Anda telah kami catat dengan rincian:
-
-🧾 *No. Invoice:* ${invoiceId}
-📦 *Produk:* ${productName}
-🎮 *ID Tujuan:* ${targetId}
-💰 *Total Tagihan:* Rp ${price}
-⏱️ *Status:* MENUNGGU PEMBAYARAN
-
-🔗 *Link Pembayaran (Klik di bawah ini):*
+💳 *LINK PEMBAYARAN:*
 ${paymentUrl}
-
-_Harap segera selesaikan pembayaran agar pesanan dapat diproses secara otomatis oleh sistem 24/7 kami._
-
-Terima kasih,
-*PansaGroup Labs* ⚡
-`,
-
-  // 2. Pesan saat pembayaran berhasil diterima (Sistem sedang Order ke Premify)
-  orderProcessing: (invoiceId: string, productName: string) => `
-*PEMBAYARAN DITERIMA* 🚀
 ━━━━━━━━━━━━━━━━━━━━
-Hore! Pembayaran untuk pesanan *${invoiceId}* telah berhasil dikonfirmasi.
 
-📦 *Item:* ${productName}
-⚙️ *Status:* SEDANG DIPROSES
+⚠️ _Selesaikan pembayaran sebelum link kedaluwarsa. Pesanan akan diproses otomatis oleh sistem kami setelah pembayaran diterima._
 
-Sistem kami sedang memproses pengiriman produk ke akun Anda. Proses ini biasanya memakan waktu 1-3 menit. Mohon ditunggu ya kak!
-
-*PansaStore Auto-System* 🤖
+Salam,
+*PansaStore* 🛒
 `,
 
-  // 3. Pesan saat API Premify menyatakan sukses (Selesai)
-  orderCompleted: (invoiceId: string, productName: string, targetId: string) => `
-*PESANAN SELESAI!* 🎉
+  // 2. Pembayaran diterima, sedang diproses ke provider
+  orderProcessing: (
+    invoiceId: string,
+    productName: string
+  ) => `
+╔════════════════════╗
+  🚀 *PEMBAYARAN DITERIMA*
+╚════════════════════╝
+
+Hore! 🎊 Pembayaran Anda telah berhasil dikonfirmasi.
+
+🧾 *No. Invoice* : ${invoiceId}
+📦 *Produk*      : ${productName}
+⚙ *Status*      : SEDANG DIPROSES
+
 ━━━━━━━━━━━━━━━━━━━━
-Yeaay! Pesanan Anda telah berhasil dikirimkan.
+🤖 Sistem kami sedang mengirimkan produk ke akun Anda secara otomatis. Estimasi waktu *1–3 menit*.
 
-🧾 *No. Invoice:* ${invoiceId}
-📦 *Produk:* ${productName}
-🎮 *ID Tujuan:* ${targetId}
-✅ *Status:* BERHASIL / SUCCESS
+Mohon ditunggu ya Kak, kami akan segera mengirimkan notifikasi setelah pesanan selesai! 💚
+━━━━━━━━━━━━━━━━━━━━
 
-Silakan cek akun/game Anda sekarang. Jika pesanan belum masuk dalam 10 menit, jangan ragu untuk membalas pesan ini untuk menghubungi Admin.
-
-Terima kasih telah mempercayakan *PansaStore*. Ditunggu orderan selanjutnya! 💚
+*PansaStore* 🛒
 `,
 
-  // 4. Pesan jika Order Premify Gagal (Refund / Cek Manual)
+  // 3. Pesanan selesai + detail akun/kredensial
+  orderCompleted: (
+    invoiceId: string,
+    productName: string,
+    targetId: string,
+    accountDetails?: string
+  ) => `
+╔════════════════════╗
+  🎉 *PESANAN SELESAI!*
+╚════════════════════╝
+
+Yeaay! Produk Anda telah berhasil dikirimkan! 🎊
+
+🧾 *No. Invoice* : ${invoiceId}
+📦 *Produk*      : ${productName}
+🎯 *ID Tujuan*   : ${targetId}
+✅ *Status*      : BERHASIL / SUCCESS
+
+━━━━━━━━━━━━━━━━━━━━
+${accountDetails
+    ? `🔐 *DETAIL AKUN / KREDENSIAL:*\n\n${accountDetails}\n\n⚠️ _Simpan kredensial ini dengan aman. Jangan bagikan ke siapapun!_`
+    : `✨ _Produk telah aktif di akun Anda. Silakan cek sekarang!_`
+  }
+━━━━━━━━━━━━━━━━━━━━
+
+📞 Jika produk belum masuk dalam *10 menit*, balas pesan ini untuk menghubungi Admin kami.
+
+Terima kasih telah mempercayakan *PansaStore*! 💚
+Ditunggu orderan selanjutnya ya Kak! 🛒
+`,
+
+  // 4. Pesanan gagal / terkendala
   orderFailed: (invoiceId: string) => `
-⚠️ *PESANAN TERKENDALA*
-━━━━━━━━━━━━━━━━━━━━
-Mohon maaf kak, pesanan *${invoiceId}* gagal diproses oleh server/provider kami (kemungkinan ID salah atau server gangguan).
+╔════════════════════╗
+  ⚠️ *PESANAN TERKENDALA*
+╚════════════════════╝
 
-Tim Admin kami akan segera melakukan pengecekan manual atau memproses *Refund* saldo Anda. Mohon tunggu sebentar ya kak! 🙏
-`
+Mohon maaf Kak 🙏, pesanan *${invoiceId}* mengalami kendala saat diproses oleh sistem provider kami.
+
+*Kemungkinan penyebab:*
+• ID tujuan tidak valid atau salah
+• Server provider sedang gangguan
+• Stok produk habis sementara
+
+━━━━━━━━━━━━━━━━━━━━
+🔄 Tim Admin kami akan segera melakukan *pengecekan manual* dan menghubungi Anda.
+
+Jika tidak ada respons dalam *15 menit*, silakan balas pesan ini untuk bantuan lebih lanjut.
+
+Kami mohon maaf atas ketidaknyamanan ini 🙏
+*PansaStore* 🛒
+`,
+
 };
