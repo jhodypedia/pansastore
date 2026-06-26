@@ -44,7 +44,7 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
       variant_id: variantId,
       quantity: 1,
       // SEMENTARA KITA SET TRUE UNTUK TESTING AGAR SALDO ASLIMU TIDAK TERPOTONG
-      is_test: true, 
+      is_test: false, 
     };
 
     if (emailInvite) {
