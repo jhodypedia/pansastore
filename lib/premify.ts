@@ -41,7 +41,7 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
       api_key: apiKey,
       variant_id: variantId,
       quantity: 1,
-      is_test: true,
+      is_test: false,
     };
 
     if (emailInvite) {
