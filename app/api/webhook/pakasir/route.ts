@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
 import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
-// IMPORT FUNGSI PREMIFY KAMU DI SINI (Sesuaikan path-nya)
-// import { processPremifyOrder } from "@/lib/premify"; 
+// IMPORT FUNGSI PREMIFY KAMU DI SINI
+import { processPremifyOrder } from "@/lib/premify"; 
 
 export async function POST(request: Request) {
   try {
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
         },
         data: {
           paymentStatus: "COMPLETED",
-          premifyStatus: "PROCESSING" // <--- INI SUDAH DIBUKA
+          premifyStatus: "PROCESSING" 
         },
       });
 
@@ -99,39 +99,35 @@ export async function POST(request: Request) {
       }
 
       // 5. TEMBAK API PREMIFY DI SINI
-      // Karena database sudah di-update menjadi PROCESSING, sekarang saatnya order ke Premify
       try {
         console.log(`[Webhook Pakasir] ⏳ Meneruskan order ${order_id} ke sistem Premify...`);
         
-        // CONTOH PEMANGGILAN FUNGSI PREMIFY:
-        // await processPremifyOrder(transaction.id, transaction.productCode);
+        // --- FIX: KODE DI BAWAH INI KINI DIAKTIFKAN UNTUK MENEMBAK PREMIFY ---
+        await processPremifyOrder(transaction.id, transaction.productCode);
         
         console.log(`[Webhook Pakasir] ✅ Order ${order_id} berhasil diteruskan ke Premify.`);
       } catch (premifyError) {
         console.error(`[Webhook Pakasir] 🚨 Gagal memproses Premify untuk ${order_id}:`, premifyError);
-        // Tergantung flow bisnis, kamu bisa update DB premifyStatus menjadi "FAILED" di sini
       }
 
       // 6. Eksekusi Pengiriman Otomatis Notifikasi via WhatsApp menggunakan baileys
       try {
         let productName = "Produk Digital";
-        let targetId = "Pelanggan";
 
         if (transaction.productDetails) {
           const details = transaction.productDetails;
           const parsed = typeof details === "string" ? JSON.parse(details) : details;
           productName = parsed.name || productName;
-          targetId = parsed.targetId || targetId;
         }
 
-        const successMessage = WATemplates.orderCompleted(
+        // --- FIX: Kirim notifikasi sedang diproses, bukan completed (Completed dikirim oleh Webhook Premify) ---
+        const processingMessage = WATemplates.orderProcessing(
           order_id,
-          productName,
-          targetId
+          productName
         );
 
-        await sendWhatsAppMessage(transaction.customerPhone, successMessage);
-        console.log(`[Webhook Pakasir] ✅ Pembayaran ${order_id} sukses. Pesan WA terkirim.`);
+        await sendWhatsAppMessage(transaction.customerPhone, processingMessage);
+        console.log(`[Webhook Pakasir] ✅ Pembayaran ${order_id} sukses. Pesan WA (Processing) terkirim.`);
 
       } catch (waError) {
         console.error(`[Webhook Pakasir] ⚠️ Pembayaran sukses tapi gagal kirim WA untuk ${order_id}:`, waError);
