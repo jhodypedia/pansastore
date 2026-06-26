@@ -40,39 +40,41 @@ export async function POST(req: Request) {
     const body = JSON.parse(rawBody);
     const { event, data } = body;
 
-    // [FIX] Log payload lengkap untuk debugging (bisa dihapus di production)
     console.log("[Premify Webhook] Event diterima:", event);
-    console.log("[Premify Webhook] Data payload:", JSON.stringify(data, null, 2));
 
-    // [FIX] Validasi menggunakan `order_id` sesuai dokumentasi resmi Premify
-    // (bukan `order_number` yang tidak ada di payload Premify)
-    if (!data || !data.order_id) {
-      console.error("[Premify Webhook] Payload tidak valid: field order_id tidak ditemukan.", data);
-      return NextResponse.json({ message: "Invalid payload: Missing order_id" }, { status: 400 });
+    // Validasi field order_number (field resmi di payload webhook Premify)
+    // Catatan: response create order pakai `order_id`, tapi payload webhook pakai `order_number`
+    if (!data || !data.order_number) {
+      console.error("[Premify Webhook] Payload tidak valid: field order_number tidak ditemukan.", data);
+      return NextResponse.json({ message: "Invalid payload: Missing order_number" }, { status: 400 });
     }
 
-    const orderId = data.order_id;
+    const orderNumber = data.order_number;
 
-    // [FIX] Skip transaksi test agar tidak mencemari log production
-    if (data.is_test === true) {
-      console.log(`[Premify Webhook] ℹ️ Transaksi test diabaikan: ${orderId}`);
+    // Skip transaksi test/sandbox agar tidak memproses data palsu
+    // is_test bisa ada di root data atau di dalam metadata
+    const isTest = data.is_test === true || data.metadata?.is_test === true;
+    if (isTest) {
+      console.log(`[Premify Webhook] ℹ️ Transaksi SANDBOX diabaikan: ${orderNumber}`);
       return NextResponse.json({ message: "Test event ignored" }, { status: 200 });
     }
 
     // 5. Cari Data Transaksi berdasarkan premifyOrderId
+    // premifyOrderId disimpan dari response create order (data.order_id)
+    // nilainya sama dengan order_number di webhook
     const transaction = await prisma.transaction.findFirst({
-      where: { premifyOrderId: orderId },
+      where: { premifyOrderId: orderNumber },
     });
 
     if (!transaction) {
-      // [FIX] Return 200 (bukan 404) agar Premify tidak terus retry webhook ini
-      console.warn(`[Premify Webhook] Transaksi vendor ${orderId} tidak ditemukan di database PansaStore.`);
+      // Return 200 (bukan 404) agar Premify tidak terus retry webhook ini
+      console.warn(`[Premify Webhook] Transaksi vendor ${orderNumber} tidak ditemukan di database PansaStore.`);
       return NextResponse.json({ message: "Transaction not found" }, { status: 200 });
     }
 
     // Abaikan jika transaksi sudah Final untuk mencegah duplikasi notif WA
     if (transaction.premifyStatus === "COMPLETED" || transaction.premifyStatus === "FAILED") {
-      console.log(`[Premify Webhook] Transaksi ${orderId} sudah diproses sebelumnya, diabaikan.`);
+      console.log(`[Premify Webhook] Transaksi ${orderNumber} sudah diproses sebelumnya, diabaikan.`);
       return NextResponse.json({ message: "Already processed" }, { status: 200 });
     }
 
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
     // 6. Eksekusi Berdasarkan Event dari Server Premify
     if (event === "order.completed") {
 
-      // Ekstrak detail akun kredensial (Email/Pass/Serial) dari array items
+      // Ekstrak detail akun kredensial dari array items
       let accountDetailsStr = "";
       if (data.items && data.items.length > 0 && data.items[0].account_details) {
         accountDetailsStr = data.items[0].account_details;
@@ -133,8 +135,8 @@ export async function POST(req: Request) {
       console.warn(`[Premify Webhook] ⚠️ Pesanan ${transaction.invoiceId} dibatalkan oleh server pusat.`);
 
     } else {
-      // Event tidak dikenal (misal: order.processing), log saja tanpa action
-      console.log(`[Premify Webhook] Event '${event}' diterima untuk ${orderId}, tidak ada aksi.`);
+      // Event lain seperti order.processing, cukup log tanpa aksi
+      console.log(`[Premify Webhook] Event '${event}' untuk ${orderNumber} tidak memerlukan aksi.`);
     }
 
     // Selalu balas 200 OK agar server Premify berhenti mengirim ulang Webhook
