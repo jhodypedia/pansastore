@@ -12,19 +12,18 @@ enum Role {
   USER
 }
 
-enum PremifyStatus {
+enum PaymentStatus {
   PENDING
-  PROCESSING
-  SUCCESS
+  PAID
   COMPLETED
   FAILED
   CANCELLED
 }
 
-
 enum PremifyStatus {
   PENDING
   PROCESSING
+  SUCCESS
   COMPLETED
   FAILED
   CANCELLED
@@ -98,5 +97,5 @@ model Transaction {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  @@index([paymentStatus, createdAt])
+  @@index([createdAt])
 }
