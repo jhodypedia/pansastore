@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     // 1. Ambil payload JSON dari Pakasir
     const body = await request.json();
-    const { order_id, amount, status, project } = body;
+    const { order_id, amount, status, project, is_sandbox } = body;
 
     // Jika status bukan completed, kita abaikan saja (misal: expired/canceled)
     if (status !== "completed") {
@@ -39,17 +39,32 @@ export async function POST(request: Request) {
     }
 
     // 3. KEAMANAN: Double-Check Status Asli ke Server Pakasir
+    // (Jika SDK kamu butuh parameter is_sandbox untuk ngecek URL yang benar, tambahkan di sini jika didukung)
     const verification = await pakasirSDK.checkTransaction({
       project: settings.pakasirProjectSlug,
       api_key: settings.pakasirApiKey,
       order_id: order_id,
     });
 
+    // --- BLOK DEBUGGING (Cek di terminal setelah transaksi) ---
+    const apiAmount = Number(verification.data?.transaction?.amount);
+    const dbAmount = Number(transaction.amount);
+    
+    console.log(`\n=== DEBUG VERIFIKASI PAKASIR [${order_id}] ===`);
+    console.log("1. Verification OK?  :", verification.ok);
+    console.log("2. Status API        :", verification.data?.transaction?.status);
+    console.log("3. Is Sandbox?       :", is_sandbox);
+    console.log("4. Amount API        :", apiAmount, `(Asli: ${verification.data?.transaction?.amount})`);
+    console.log("5. Amount DB         :", dbAmount, `(Asli: ${transaction.amount})`);
+    console.log("==================================================\n");
+    // ---------------------------------------------------------
+
     // 4. Proses Jika Verifikasi Valid
+    // Perbaikan: Gunakan Number() agar tipe data decimal Prisma & integer Pakasir bisa dibandingkan nilainya
     if (
       verification.ok && 
       verification.data?.transaction?.status === "completed" &&
-      verification.data?.transaction?.amount === transaction.amount // Pastikan nominal tidak dimanipulasi
+      apiAmount === dbAmount 
     ) {
       
       // Update status di database menjadi SUKSES
