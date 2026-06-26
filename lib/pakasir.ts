@@ -1,5 +1,3 @@
-// lib/pakasir.ts
-
 interface PakasirQrisPayload {
   project: string;
   api_key: string;
@@ -11,6 +9,7 @@ interface PakasirCheckPayload {
   project: string;
   api_key: string;
   order_id: string;
+  amount: number;
 }
 
 const PAKASIR_BASE_URL = "https://app.pakasir.com/api";
@@ -40,6 +39,11 @@ export const pakasirSDK = {
 
   /**
    * Mengecek detail transaksi (Bisa digunakan untuk Webhook Validation atau Polling)
+   *
+   * Catatan: endpoint transactiondetail Pakasir mewajibkan `amount` sebagai query
+   * param, sama seperti endpoint create/cancel lainnya. Tanpa amount, request bisa
+   * gagal atau salah menemukan transaksi (Pakasir tampaknya mengidentifikasi
+   * transaksi lewat kombinasi project + order_id + amount, bukan order_id saja).
    */
   checkTransaction: async (payload: PakasirCheckPayload) => {
     try {
@@ -48,6 +52,7 @@ export const pakasirSDK = {
         project: payload.project,
         api_key: payload.api_key,
         order_id: payload.order_id,
+        amount: payload.amount.toString(),
       }).toString();
 
       const response = await fetch(`${PAKASIR_BASE_URL}/transactiondetail?${queryParams}`, {
