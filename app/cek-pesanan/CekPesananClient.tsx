@@ -21,10 +21,10 @@ export default function CekPesananClient({ initialInvoice, transactionData }: Ce
     router.push(`/cek-pesanan?invoice=${invoiceInput.trim()}`);
   };
 
-  // Fungsi Pembantu Warna Status Pembayaran (DompetX)
+  // Fungsi Pembantu Warna Status Pembayaran (Pakasir)
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case "PAID": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "COMPLETED": return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "FAILED": return "bg-red-50 text-red-600 border-red-200";
       default: return "bg-amber-50 text-amber-600 border-amber-200";
     }
@@ -33,9 +33,10 @@ export default function CekPesananClient({ initialInvoice, transactionData }: Ce
   // Fungsi Pembantu Warna Status Pengiriman (Premify)
   const getOrderStatusColor = (status: string) => {
     switch (status) {
-      case "SUCCESS": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "COMPLETED": return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "FAILED": return "bg-red-50 text-red-600 border-red-200";
-      default: return "bg-blue-50 text-blue-600 border-blue-200";
+      case "PROCESSING": return "bg-blue-50 text-blue-600 border-blue-200";
+      default: return "bg-slate-100 text-slate-500 border-slate-200";
     }
   };
 
@@ -50,7 +51,8 @@ export default function CekPesananClient({ initialInvoice, transactionData }: Ce
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20">
+    // FIX SCROLL: Ditambahkan overflow-x-hidden di sini
+    <div className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden">
       
       {/* NAVBAR */}
       <nav className="bg-white border-b border-slate-200/60 py-4 shadow-sm sticky top-0 z-50">
@@ -137,7 +139,7 @@ export default function CekPesananClient({ initialInvoice, transactionData }: Ce
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                 <div>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Nama Produk</p>
-                  <p className="font-bold text-lg">{productDetails.name || "Produk PansaStore"}</p>
+                  <p className="font-bold text-lg">{productDetails.name || "Produk Digital"}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">ID Tujuan / Player ID</p>
@@ -148,8 +150,8 @@ export default function CekPesananClient({ initialInvoice, transactionData }: Ce
                   <p className="font-black text-2xl text-white">Rp {transactionData.amount.toLocaleString('id-ID')}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Serial Number (SN)</p>
-                  <p className="font-bold text-slate-300 text-sm select-all">{productDetails.sn || "Menunggu proses penyelesaian..."}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Order ID Vendor</p>
+                  <p className="font-bold text-slate-300 text-sm select-all">{transactionData.premifyOrderId || "Menunggu proses penyelesaian..."}</p>
                 </div>
               </div>
             </div>
@@ -157,11 +159,9 @@ export default function CekPesananClient({ initialInvoice, transactionData }: Ce
             {/* JIKA PEMBAYARAN MASIH PENDING (Beri Opsi Lanjut Bayar) */}
             {transactionData.paymentStatus === "PENDING" && (
               <div className="mt-8 text-center relative z-10">
-                <p className="text-sm text-slate-500 mb-4 font-medium">Pembayaran belum diselesaikan. Silakan klik tombol di bawah untuk melanjutkan ke Gateway.</p>
-                {/* Biasanya link pembayaran bisa disimpan di DB saat checkout, atau user diarahkan ulang.
-                    Karena kita tidak simpan URL, instruksikan cek WA */}
+                <p className="text-sm text-slate-500 mb-4 font-medium">Pembayaran belum diselesaikan. Detail pesanan telah kami amankan.</p>
                 <p className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 px-5 py-2.5 rounded-xl text-xs font-bold border border-amber-200">
-                  <i className="ri-whatsapp-line text-lg"></i> Link Pembayaran telah dikirim ke WhatsApp Anda.
+                  <i className="ri-whatsapp-line text-lg"></i> Link QRIS Pembayaran telah dikirim ke WhatsApp Anda.
                 </p>
               </div>
             )}
