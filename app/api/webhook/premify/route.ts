@@ -5,10 +5,8 @@ import crypto from "crypto";
 
 export async function POST(req: Request) {
   try {
-    // 1. Ambil Raw Body (Teks murni) untuk Validasi Keamanan Signature
+    // 1. Ambil Raw Body untuk Validasi Signature
     const rawBody = await req.text();
-
-    // Di Next.js App Router, header HTTP otomatis menjadi lowercase
     const signatureHeader = req.headers.get("x-premify-signature");
 
     if (!signatureHeader) {
@@ -16,7 +14,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Missing Signature" }, { status: 401 });
     }
 
-    // 2. Ambil API Key dari Database untuk mencocokkan HMAC
+    // 2. Ambil API Key dari Database
     const settings = await prisma.appSetting.findFirst();
     const apiKey = settings?.premifyApiKey;
 
@@ -25,7 +23,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "System not ready" }, { status: 500 });
     }
 
-    // 3. Validasi Keamanan Signature HMAC-SHA256
+    // 3. Validasi HMAC-SHA256
     const expectedSignature = crypto
       .createHmac("sha256", apiKey)
       .update(rawBody)
@@ -36,14 +34,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid Signature" }, { status: 401 });
     }
 
-    // 4. Parsing Payload JSON dari Premify
+    // 4. Parsing Payload
     const body = JSON.parse(rawBody);
     const { event, data } = body;
 
     console.log("[Premify Webhook] Event diterima:", event);
 
-    // Validasi field order_number (field resmi di payload webhook Premify)
-    // Catatan: response create order pakai `order_id`, tapi payload webhook pakai `order_number`
     if (!data || !data.order_number) {
       console.error("[Premify Webhook] Payload tidak valid: field order_number tidak ditemukan.", data);
       return NextResponse.json({ message: "Invalid payload: Missing order_number" }, { status: 400 });
@@ -51,28 +47,24 @@ export async function POST(req: Request) {
 
     const orderNumber = data.order_number;
 
-    // Skip transaksi test/sandbox agar tidak memproses data palsu
-    // is_test bisa ada di root data atau di dalam metadata
+    // Skip transaksi sandbox
     const isTest = data.is_test === true || data.metadata?.is_test === true;
     if (isTest) {
       console.log(`[Premify Webhook] ℹ️ Transaksi SANDBOX diabaikan: ${orderNumber}`);
       return NextResponse.json({ message: "Test event ignored" }, { status: 200 });
     }
 
-    // 5. Cari Data Transaksi berdasarkan premifyOrderId
-    // premifyOrderId disimpan dari response create order (data.order_id)
-    // nilainya sama dengan order_number di webhook
+    // 5. Cari Transaksi di Database
     const transaction = await prisma.transaction.findFirst({
       where: { premifyOrderId: orderNumber },
     });
 
     if (!transaction) {
-      // Return 200 (bukan 404) agar Premify tidak terus retry webhook ini
-      console.warn(`[Premify Webhook] Transaksi vendor ${orderNumber} tidak ditemukan di database PansaStore.`);
+      console.warn(`[Premify Webhook] Transaksi ${orderNumber} tidak ditemukan di database.`);
       return NextResponse.json({ message: "Transaction not found" }, { status: 200 });
     }
 
-    // Abaikan jika transaksi sudah Final untuk mencegah duplikasi notif WA
+    // Cegah duplikasi proses
     if (transaction.premifyStatus === "COMPLETED" || transaction.premifyStatus === "FAILED") {
       console.log(`[Premify Webhook] Transaksi ${orderNumber} sudah diproses sebelumnya, diabaikan.`);
       return NextResponse.json({ message: "Already processed" }, { status: 200 });
@@ -81,19 +73,19 @@ export async function POST(req: Request) {
     const productDetails = JSON.parse(transaction.productDetails || "{}");
     const customerWA = transaction.customerPhone;
 
-    // 6. Eksekusi Berdasarkan Event dari Server Premify
+    // 6. Handle Event
     if (event === "order.completed") {
 
-      // Ekstrak detail akun kredensial dari array items
+      // Ekstrak account_details dari items (string dari Premify)
       let accountDetailsStr = "";
       if (data.items && data.items.length > 0 && data.items[0].account_details) {
         accountDetailsStr = data.items[0].account_details;
       }
 
-      // Simpan kredensial ke productDetails (key "sn" agar UI Cek Pesanan bisa membacanya)
+      // Simpan kredensial ke productDetails
       const updatedDetails = {
         ...productDetails,
-        sn: accountDetailsStr || "Akses otomatis aktif/cek panduan.",
+        sn: accountDetailsStr || "Akses otomatis aktif.",
       };
 
       await prisma.transaction.update({
@@ -104,19 +96,16 @@ export async function POST(req: Request) {
         },
       });
 
-      // Kirim WA Pesanan Selesai
-      let msg = WATemplates.orderCompleted(
+      // Kirim WA dengan account_details masuk ke dalam template
+      const msg = WATemplates.orderCompleted(
         transaction.invoiceId,
         productDetails.name,
-        productDetails.targetId
+        productDetails.targetId,
+        accountDetailsStr || undefined
       );
 
-      if (accountDetailsStr) {
-        msg += `\n\n📌 *Detail Akun / Kredensial Premium:*\n${accountDetailsStr}`;
-      }
-
       await sendWhatsAppMessage(customerWA, msg).catch(console.error);
-      console.log(`[Premify Webhook] ✅ Pesanan ${transaction.invoiceId} sukses dikirim ke pelanggan!`);
+      console.log(`[Premify Webhook] ✅ Pesanan ${transaction.invoiceId} selesai, notif WA terkirim.`);
 
     } else if (event === "order.failed" || event === "order.cancelled") {
 
@@ -135,11 +124,9 @@ export async function POST(req: Request) {
       console.warn(`[Premify Webhook] ⚠️ Pesanan ${transaction.invoiceId} dibatalkan oleh server pusat.`);
 
     } else {
-      // Event lain seperti order.processing, cukup log tanpa aksi
       console.log(`[Premify Webhook] Event '${event}' untuk ${orderNumber} tidak memerlukan aksi.`);
     }
 
-    // Selalu balas 200 OK agar server Premify berhenti mengirim ulang Webhook
     return NextResponse.json({ success: true, message: "Webhook processed" }, { status: 200 });
 
   } catch (error: any) {
