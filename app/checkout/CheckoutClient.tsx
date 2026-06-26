@@ -121,7 +121,8 @@ export default function CheckoutClient({
   // ==========================================
   if (invoiceData) {
     return (
-      <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}>
+      // FIX SCROLL: Ditambahkan overflow-x-hidden pada parent utama
+      <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden`}>
         <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-bold text-emerald-900/70 bg-emerald-900/[0.04] px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-emerald-900/10 shadow-sm">
@@ -141,7 +142,8 @@ export default function CheckoutClient({
   // RENDER VIEW: TAMPILAN CHECKOUT FORM UTAMA
   // ==========================================
   return (
-    <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}>
+    // FIX SCROLL: Ditambahkan overflow-x-hidden pada parent utama
+    <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden`}>
       
       {/* NAVIGATION */}
       <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
@@ -176,11 +178,11 @@ export default function CheckoutClient({
           
           {/* RINGKASAN TRANSKASI */}
           <div className="order-1 lg:order-2 lg:col-span-5 relative">
-            {/* FIX BUG SCROLL: relative sticky diganti menjadi relative lg:sticky lg:top-[96px] */}
             <div className="relative lg:sticky lg:top-[96px] rounded-[28px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(10,31,26,0.35)]">
               <div className="h-[3px] w-full bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600" />
 
               <div className="bg-[#0A1F1A] p-6 md:p-8 text-white relative overflow-hidden">
+                {/* Elemen glow/blur yang sering memicu bug scroll horizontal di HP */}
                 <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-emerald-600/20 blur-[80px] pointer-events-none" />
 
                 <div className="flex items-center justify-between mb-6 relative z-10">
