@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { processCheckout } from "@/actions/checkout";
-import QRISInvoice from "@/components/QRISInvoice"; // Pastikan path import ini sesuai
+import QRISInvoice from "@/components/QRISInvoice"; 
 
 // Menggunakan font Plus Jakarta Sans untuk tampilan modern, bersih, dan premium
 const fontSans = Plus_Jakarta_Sans({
@@ -33,7 +33,7 @@ export default function CheckoutClient({
 }: CheckoutClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [invoiceData, setInvoiceData] = useState<any>(null); // State baru untuk menyimpan data QRIS
+  const [invoiceData, setInvoiceData] = useState<any>(null);
 
   // ==========================================
   // SMART DETECTOR: DETEKSI TIPE PRODUK
@@ -79,13 +79,12 @@ export default function CheckoutClient({
     if (variantId) formData.append("variantId", variantId);
     formData.append("targetId", finalTargetId);
     formData.append("whatsapp", whatsapp);
-    formData.append("method", "qris"); // Pastikan method QRIS dikirim ke server action
+    formData.append("method", "qris"); 
 
     try {
       const res = await processCheckout(formData);
       clearInterval(stepInterval);
 
-      // Asumsi: Action server sekarang mengembalikan { success: true, payment: {...dataPakasir} }
       if (res.success && res.payment) {
         setLoadingStep(4);
         toast.success("Invoice berhasil dibuat!", { icon: "🔒" });
@@ -123,7 +122,6 @@ export default function CheckoutClient({
   if (invoiceData) {
     return (
       <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}>
-        {/* Navigation dipertahankan agar user tetap merasa di halaman yang sama */}
         <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-bold text-emerald-900/70 bg-emerald-900/[0.04] px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-emerald-900/10 shadow-sm">
@@ -145,7 +143,7 @@ export default function CheckoutClient({
   return (
     <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20`}>
       
-      {/* NAVIGATION - Minimalis Premium */}
+      {/* NAVIGATION */}
       <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -176,9 +174,10 @@ export default function CheckoutClient({
 
         <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10">
           
-          {/* RINGKASAN TRANSKASI (KARTU STICKY) */}
+          {/* RINGKASAN TRANSKASI */}
           <div className="order-1 lg:order-2 lg:col-span-5 relative">
-            <div className="relative sticky top-[96px] rounded-[28px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(10,31,26,0.35)]">
+            {/* FIX BUG SCROLL: relative sticky diganti menjadi relative lg:sticky lg:top-[96px] */}
+            <div className="relative lg:sticky lg:top-[96px] rounded-[28px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(10,31,26,0.35)]">
               <div className="h-[3px] w-full bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600" />
 
               <div className="bg-[#0A1F1A] p-6 md:p-8 text-white relative overflow-hidden">
