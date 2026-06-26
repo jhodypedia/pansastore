@@ -12,13 +12,15 @@ enum Role {
   USER
 }
 
-enum PaymentStatus {
+enum PremifyStatus {
   PENDING
-  PAID
+  PROCESSING
+  SUCCESS
   COMPLETED
   FAILED
   CANCELLED
 }
+
 
 enum PremifyStatus {
   PENDING
