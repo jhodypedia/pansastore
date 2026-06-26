@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 const PREMIFY_BASE_URL = "https://premify.store/api/v1";
 
 export async function processPremifyOrder(transactionId: number, variantId: string) {
-  // LOG ENTRY POINT: Jika log ini tidak muncul, berarti route.ts tidak memanggil fungsi ini!
   console.log(`\n[PREMIFY ENTRY] Memulai proses order untuk Transaction ID: ${transactionId} | Variant: ${variantId}`);
 
   try {
@@ -28,23 +27,21 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
     let emailInvite = undefined;
     if (transaction.productDetails) {
       try {
-        const details = typeof transaction.productDetails === "string" 
-          ? JSON.parse(transaction.productDetails) 
+        const details = typeof transaction.productDetails === "string"
+          ? JSON.parse(transaction.productDetails)
           : transaction.productDetails;
-        
+
         emailInvite = details.targetId;
       } catch (e) {
         console.warn("[PREMIFY WARN] Gagal parsing productDetails:", e);
       }
     }
 
-    // PAYLOAD PREMIFY
     const payload: any = {
       api_key: apiKey,
       variant_id: variantId,
       quantity: 1,
-      // SEMENTARA KITA SET TRUE UNTUK TESTING AGAR SALDO ASLIMU TIDAK TERPOTONG
-      is_test: false, 
+      is_test: false,
     };
 
     if (emailInvite) {
@@ -53,14 +50,13 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
 
     console.log(`[PREMIFY HTTP] Menembak endpoint /order...`, payload);
 
-    // FIX NEXT.JS CACHING: Tambahkan cache: 'no-store'
     const response = await fetch(`${PREMIFY_BASE_URL}/order`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
-      cache: "no-store", // Wajib agar request selalu baru (tidak di-cache)
+      cache: "no-store",
     });
 
     const result = await response.json();
@@ -69,18 +65,21 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
     if (response.ok && result.success) {
       console.log(`[PREMIFY SUKSES] Order ID Premify: ${result.data?.order_id}`);
 
+      // ✅ FIX: Set PROCESSING, bukan COMPLETED
+      // Status COMPLETED akan di-set oleh webhook Premify (order.completed)
       await prisma.transaction.update({
         where: { id: transactionId },
-        data: { 
-          premifyStatus: "COMPLETED",
-          premifyOrderId: result.data?.order_id 
+        data: {
+          premifyStatus: "PROCESSING",
+          premifyOrderId: result.data?.order_id,
         },
       });
 
       return { success: true, data: result.data };
+
     } else {
       console.error(`[PREMIFY DITOLAK] Pesan dari Premify:`, result.message);
-      
+
       await prisma.transaction.update({
         where: { id: transactionId },
         data: { premifyStatus: "FAILED" },
@@ -88,13 +87,14 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
 
       return { success: false, message: result.message };
     }
+
   } catch (error: any) {
     console.error("[PREMIFY EXCEPTION] Terjadi crash di fungsi:", error.message);
-    
+
     await prisma.transaction.update({
       where: { id: transactionId },
       data: { premifyStatus: "FAILED" },
-    }).catch(() => {}); // Silent catch
+    }).catch(() => {});
 
     return { success: false, message: error.message };
   }
