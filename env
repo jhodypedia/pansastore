@@ -1,0 +1,17 @@
+DATABASE_URL="mysql://root:@localhost:3306/pansastore_db"
+
+# INI YANG DIBUTUHKAN OLEH PRISMA ADAPTER ANDA DI lib/prisma.ts
+DATABASE_HOST="localhost"
+DATABASE_PORT="3306"
+DATABASE_USER="root"
+DATABASE_PASSWORD=""
+DATABASE_NAME=""
+
+# Konfigurasi Next.js & NextAuth
+NODE_ENV="development"
+NEXTAUTH_SECRET="="
+NEXT_PUBLIC_API_URL=""
+AUTH_TRUST_HOST=true
+NEXTAUTH_URL=""
+AUTH_URL=""
+NEXT_PUBLIC_APP_URL=""
