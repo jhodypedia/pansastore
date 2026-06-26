@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
 import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
+// IMPORT FUNGSI PREMIFY KAMU DI SINI (Sesuaikan path-nya)
+// import { processPremifyOrder } from "@/lib/premify"; 
 
 export async function POST(request: Request) {
   try {
@@ -9,13 +11,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { order_id, status, project, is_sandbox } = body;
 
-    // Validasi dasar payload biar tidak crash kalau body aneh/kosong
+    // Validasi dasar payload
     if (!order_id || !status || !project) {
       console.warn("[Webhook Pakasir] Payload tidak lengkap:", body);
       return NextResponse.json({ error: "Payload tidak valid" }, { status: 400 });
     }
 
-    // Jika status bukan completed, kita abaikan saja (misal: expired/canceled)
+    // Jika status bukan completed, kita abaikan saja
     if (status !== "completed") {
       return NextResponse.json({ received: true, message: "Bukan status completed, diabaikan." });
     }
@@ -47,15 +49,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project tidak valid" }, { status: 400 });
     }
 
-    // Hindari pemrosesan ganda jika transaksi sudah sukses sebelumnya
+    // Hindari pemrosesan ganda
     if (transaction.paymentStatus === "COMPLETED") {
       return NextResponse.json({ received: true, message: "Transaksi sudah pernah diproses sebelumnya." });
     }
 
     // 3. KEAMANAN: Double-Check Status Asli ke Server Pakasir
-    // Gunakan amount dari DB kita sendiri (bukan dari body webhook) sebagai parameter
-    // query, karena body webhook belum terverifikasi dan amount memang wajib
-    // disertakan oleh endpoint transactiondetail.
     const dbAmount = Number(transaction.amount);
 
     const verification = await pakasirSDK.checkTransaction({
@@ -65,17 +64,15 @@ export async function POST(request: Request) {
       amount: dbAmount,
     });
 
-    // --- BLOK DEBUGGING (Cek di terminal setelah transaksi) ---
     const apiAmount = Number(verification.data?.transaction?.amount);
 
     console.log(`\n=== DEBUG VERIFIKASI PAKASIR [${order_id}] ===`);
     console.log("1. Verification OK?  :", verification.ok);
     console.log("2. Status API        :", verification.data?.transaction?.status);
     console.log("3. Is Sandbox?       :", is_sandbox);
-    console.log("4. Amount API        :", apiAmount, `(Asli: ${verification.data?.transaction?.amount})`);
-    console.log("5. Amount DB         :", dbAmount, `(Asli: ${transaction.amount})`);
+    console.log("4. Amount API        :", apiAmount);
+    console.log("5. Amount DB         :", dbAmount);
     console.log("==================================================\n");
-    // ---------------------------------------------------------
 
     // 4. Proses Jika Verifikasi Valid
     if (
@@ -84,10 +81,7 @@ export async function POST(request: Request) {
       apiAmount === dbAmount
     ) {
 
-      // Update status di database menjadi SUKSES.
-      // Pakai updateMany dengan guard paymentStatus agar atomik: kalau ada webhook
-      // retry yang datang hampir bersamaan, hanya SATU request yang akan lolos
-      // (count === 1) dan berhak mengirim notifikasi WA. Mencegah WA terkirim dobel.
+      // Update status di database secara atomik
       const updateResult = await prisma.transaction.updateMany({
         where: {
           id: transaction.id,
@@ -95,23 +89,34 @@ export async function POST(request: Request) {
         },
         data: {
           paymentStatus: "COMPLETED",
-          // Anda bisa mengubah premifyStatus jika ada proses webhook lanjutan
-          // premifyStatus: "PROCESSING"
+          premifyStatus: "PROCESSING" // <--- INI SUDAH DIBUKA
         },
       });
 
       if (updateResult.count === 0) {
-        // Sudah diproses oleh request lain yang berjalan hampir bersamaan (race condition).
         console.log(`[Webhook Pakasir] ⚠️ Transaksi ${order_id} sudah diproses request lain (race-safe).`);
         return NextResponse.json({ received: true, message: "Sudah diproses sebelumnya (race-safe)." });
       }
 
-      // 5. Eksekusi Pengiriman Otomatis Notifikasi via WhatsApp
+      // 5. TEMBAK API PREMIFY DI SINI
+      // Karena database sudah di-update menjadi PROCESSING, sekarang saatnya order ke Premify
+      try {
+        console.log(`[Webhook Pakasir] ⏳ Meneruskan order ${order_id} ke sistem Premify...`);
+        
+        // CONTOH PEMANGGILAN FUNGSI PREMIFY:
+        // await processPremifyOrder(transaction.id, transaction.productCode);
+        
+        console.log(`[Webhook Pakasir] ✅ Order ${order_id} berhasil diteruskan ke Premify.`);
+      } catch (premifyError) {
+        console.error(`[Webhook Pakasir] 🚨 Gagal memproses Premify untuk ${order_id}:`, premifyError);
+        // Tergantung flow bisnis, kamu bisa update DB premifyStatus menjadi "FAILED" di sini
+      }
+
+      // 6. Eksekusi Pengiriman Otomatis Notifikasi via WhatsApp menggunakan baileys
       try {
         let productName = "Produk Digital";
         let targetId = "Pelanggan";
 
-        // Ekstrak detail produk jika tersimpan sebagai JSON string
         if (transaction.productDetails) {
           const details = transaction.productDetails;
           const parsed = typeof details === "string" ? JSON.parse(details) : details;
@@ -119,14 +124,12 @@ export async function POST(request: Request) {
           targetId = parsed.targetId || targetId;
         }
 
-        // MENGGUNAKAN TEMPLATE orderCompleted YANG ADA DI SISTEM ANDA
         const successMessage = WATemplates.orderCompleted(
           order_id,
           productName,
           targetId
         );
 
-        // Kirim via bot Baileys
         await sendWhatsAppMessage(transaction.customerPhone, successMessage);
         console.log(`[Webhook Pakasir] ✅ Pembayaran ${order_id} sukses. Pesan WA terkirim.`);
 
@@ -134,7 +137,6 @@ export async function POST(request: Request) {
         console.error(`[Webhook Pakasir] ⚠️ Pembayaran sukses tapi gagal kirim WA untuk ${order_id}:`, waError);
       }
 
-      // Berikan respons 200 OK
       return NextResponse.json({ success: true, message: "Webhook berhasil diproses." });
 
     } else {
