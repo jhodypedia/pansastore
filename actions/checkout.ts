@@ -94,7 +94,7 @@ export async function processCheckout(formData: FormData) {
     if (paymentResult.ok && paymentResult.data?.payment) {
       
       // Siapkan URL Invoice lokal untuk dikirim ke WhatsApp
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
       const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${invoiceId}`;
       
       // Kirim notifikasi pembuatan invoice via Bot WhatsApp Baileys
