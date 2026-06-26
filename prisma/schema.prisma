@@ -12,6 +12,22 @@ enum Role {
   USER
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PremifyStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String?
@@ -46,7 +62,6 @@ model Product {
   stock       Int       @default(0)
   updatedAt   DateTime  @updatedAt
 
-  // Relasi ke Variant
   variants    Variant[]
 }
 
@@ -55,30 +70,31 @@ model Variant {
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  name      String           // contoh: "1 Bulan", "3 Bulan", "1 Tahun"
-  duration  String           // contoh: "30 Hari", "90 Hari", "365 Hari"
-  type      String           // contoh: "Private", "Sharing"
-  warranty  String           // contoh: "30 Hari", "Full"
+  name      String
+  duration  String
+  type      String
+  warranty  String
   price     Float
   stock     Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Index untuk mempercepat query berdasarkan produk
   @@index([productId])
 }
 
 model Transaction {
-  id             Int      @id @default(autoincrement())
-  invoiceId      String   @unique
+  id             Int           @id @default(autoincrement())
+  invoiceId      String        @unique
   premifyOrderId String?
   productCode    String
   customerPhone  String
   amount         Float
-  paymentStatus  String   @default("PENDING")
-  premifyStatus  String   @default("PENDING")
-  productDetails String?  @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  paymentStatus  PaymentStatus @default(PENDING)
+  premifyStatus  PremifyStatus @default(PENDING)
+  productDetails String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([paymentStatus, createdAt])
 }
