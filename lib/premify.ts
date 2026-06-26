@@ -1,14 +1,14 @@
 import prisma from "@/lib/prisma";
 
-// Base URL sesuai dokumentasi Premify
-const PREMIFY_BASE_URL = "https://premify.store/api/v1"; [span_4](start_span)//[span_4](end_span)
+// Base URL sesuai dokumentasi API Premify
+const PREMIFY_BASE_URL = "https://premify.store/api/v1";
 
 /**
- * Fungsi utama untuk meneruskan pesanan ke Premify setelah pembayaran sukses.
- * @param transactionId ID dari tabel Transaction di database kita
- * @param variantId Kode varian atau ID produk dari Premify (premifySkuCode)
+ * Fungsi utama untuk meneruskan pesanan ke Premify setelah pembayaran QRIS sukses.
+ * @param transactionId ID (Integer) dari tabel Transaction
+ * @param variantId Kode varian atau ID produk (productCode dari DB)
  */
-export async function processPremifyOrder(transactionId: string, variantId: string) {
+export async function processPremifyOrder(transactionId: number, variantId: string) {
   try {
     // 1. Tarik data transaksi dan pengaturan aplikasi
     const [transaction, settings] = await Promise.all([
@@ -22,10 +22,10 @@ export async function processPremifyOrder(transactionId: string, variantId: stri
       throw new Error(`Transaksi dengan ID ${transactionId} tidak ditemukan.`);
     }
 
-    // Pastikan kamu memiliki kolom premifyApiKey di tabel AppSetting atau gunakan .env
-    const apiKey = settings?.premifyApiKey || process.env.PREMIFY_API_KEY;
+    // Mengambil API Key dari tabel AppSetting sesuai skema Prisma kamu
+    const apiKey = settings?.premifyApiKey;
     if (!apiKey) {
-      throw new Error("API Key Premify belum dikonfigurasi.");
+      throw new Error("API Key Premify belum dikonfigurasi di pengaturan aplikasi.");
     }
 
     // 2. Ekstrak targetId (Email/WA) dari productDetails untuk produk tipe "Invite"
@@ -36,8 +36,8 @@ export async function processPremifyOrder(transactionId: string, variantId: stri
           ? JSON.parse(transaction.productDetails) 
           : transaction.productDetails;
         
-        // Dokumentasi Premify mewajibkan email_invite untuk produk tipe Invite
-        emailInvite = details.targetId; [span_5](start_span)[span_6](start_span)//[span_5](end_span)[span_6](end_span)
+        // Dokumentasi Premify mewajibkan email_invite untuk produk tipe Invite (Canva, dll)
+        emailInvite = details.targetId;
       } catch (e) {
         console.warn("[Premify SDK] Gagal parsing productDetails:", e);
       }
@@ -46,20 +46,20 @@ export async function processPremifyOrder(transactionId: string, variantId: stri
     // 3. Siapkan Payload untuk endpoint /order
     // Parameter is_test diset false untuk production. Jika ingin Sandbox, ganti menjadi true.
     const payload: any = {
-      [span_7](start_span)api_key: apiKey, //[span_7](end_span)
-      [span_8](start_span)variant_id: variantId, //[span_8](end_span)
-      [span_9](start_span)quantity: 1, //[span_9](end_span)
-      [span_10](start_span)[span_11](start_span)is_test: false, // Ubah ke true jika ingin testing tanpa memotong saldo asli[span_10](end_span)[span_11](end_span)
+      api_key: apiKey,
+      variant_id: variantId,
+      quantity: 1,
+      is_test: false, // Ubah ke true jika ingin testing tanpa memotong saldo asli
     };
 
     if (emailInvite) {
-      payload.email_invite = emailInvite; [span_12](start_span)//[span_12](end_span)
+      payload.email_invite = emailInvite;
     }
 
     console.log(`[Premify SDK] Mengirim request order untuk varian: ${variantId}...`);
 
     // 4. Eksekusi HTTP POST Request ke Premify
-    [span_13](start_span)const response = await fetch(`${PREMIFY_BASE_URL}/order`, { //[span_13](end_span)
+    const response = await fetch(`${PREMIFY_BASE_URL}/order`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,15 +71,14 @@ export async function processPremifyOrder(transactionId: string, variantId: stri
 
     // 5. Evaluasi Hasil dari Premify
     if (response.ok && result.success) {
-      console.log(`[Premify SDK] ✅ Order sukses! Order ID Premify: ${result.data?.order_id}`); [span_14](start_span)//[span_14](end_span)
+      console.log(`[Premify SDK] ✅ Order sukses! Order ID Premify: ${result.data?.order_id}`);
 
-      // Update status di database kita menjadi SUCCESS
+      // Update status di database kita menjadi COMPLETED dan simpan ID Order Premify
       await prisma.transaction.update({
         where: { id: transactionId },
         data: { 
           premifyStatus: "COMPLETED",
-          // Opsional: Simpan Order ID dari Premify ke catatan/detail untuk tracking
-          // productDetails: JSON.stringify({ ...details, premifyOrderId: result.data.order_id })
+          premifyOrderId: result.data?.order_id 
         },
       });
 
