@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
 
     // 3. Ambil data produk dari Premify
-    const res = await fetch('https://premify.store/api/v1/products', {
+    const res = await fetch('https://premifystore.id/api/v1/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: settings.premifyApiKey })
