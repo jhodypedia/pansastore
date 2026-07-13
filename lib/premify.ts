@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 
-const PREMIFY_BASE_URL = "https://premify.store/api/v1";
+const PREMIFY_BASE_URL = "https://premifystore.id/api/v1";
 
 export async function processPremifyOrder(transactionId: number, variantId: string) {
   console.log(`\n[PREMIFY ENTRY] Memulai proses order untuk Transaction ID: ${transactionId} | Variant: ${variantId}`);
