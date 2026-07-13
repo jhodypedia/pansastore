@@ -12,7 +12,7 @@ export async function syncPremifyProducts() {
     }
 
     // 2. Tembak API Premify
-    const res = await fetch('https://premify.store/api/v1/products', {
+    const res = await fetch('https://premifystore.id/api/v1/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: settings.premifyApiKey })
