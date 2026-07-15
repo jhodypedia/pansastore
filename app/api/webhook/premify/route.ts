@@ -3,93 +3,189 @@ import prisma from "@/lib/prisma";
 import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
+function safeJsonParse<T = any>(value: string | null | undefined, fallback: T): T {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function verifyPremifySignature(
+  rawBody: string,
+  signatureHeader: string,
+  secret: string
+): boolean {
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
+
+  const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+  const receivedBuffer = Buffer.from(signatureHeader || "", "utf8");
+
+  if (expectedBuffer.length !== receivedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
 export async function POST(req: Request) {
   try {
-    // 1. Ambil Raw Body untuk Validasi Signature
+    // 1. Ambil raw body
     const rawBody = await req.text();
-    const signatureHeader = req.headers.get("x-premify-signature");
+    const signatureHeader = req.headers.get("x-premify-signature") || "";
 
     if (!signatureHeader) {
-      console.warn("[Premify Webhook] Ditolak: Header Signature tidak ditemukan.");
-      return NextResponse.json({ message: "Missing Signature" }, { status: 401 });
+      console.warn("[Premify Webhook] Ditolak: Header signature tidak ditemukan.");
+      return NextResponse.json(
+        { success: false, message: "Missing signature" },
+        { status: 401 }
+      );
     }
 
-    // 2. Ambil API Key dari ENV (prioritas) atau Database (fallback)
-    const apiKey = process.env.PREMIFY_API_KEY || (await prisma.appSetting.findFirst())?.premifyApiKey;
+    // 2. Ambil API key / secret Premify
+    const settings = await prisma.appSetting.findFirst();
 
-    if (!apiKey) {
-      console.error("[Premify Webhook] API Key belum dikonfigurasi.");
-      return NextResponse.json({ message: "System not ready" }, { status: 500 });
+    const premifySecret =
+      process.env.PREMIFY_API_KEY ||
+      settings?.premifyApiKey ||
+      "";
+
+    if (!premifySecret) {
+      console.error("[Premify Webhook] Premify API key / secret belum dikonfigurasi.");
+      return NextResponse.json(
+        { success: false, message: "System not ready" },
+        { status: 500 }
+      );
     }
 
-    // 3. Validasi HMAC-SHA256
-    const expectedSignature = crypto
-      .createHmac("sha256", apiKey)
-      .update(rawBody)
-      .digest("hex");
+    // 3. Verifikasi HMAC SHA256
+    const isValidSignature = verifyPremifySignature(
+      rawBody,
+      signatureHeader,
+      premifySecret
+    );
 
-    if (signatureHeader !== expectedSignature) {
-      console.error("[Premify Webhook] 🚨 Signature HMAC tidak cocok! Potensi serangan.");
-      return NextResponse.json({ message: "Invalid Signature" }, { status: 401 });
+    if (!isValidSignature) {
+      console.error("[Premify Webhook] Signature HMAC tidak cocok.");
+      return NextResponse.json(
+        { success: false, message: "Invalid signature" },
+        { status: 401 }
+      );
     }
 
-    // 4. Parsing Payload
-    const body = JSON.parse(rawBody);
+    // 4. Parse payload
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Invalid JSON payload" },
+        { status: 400 }
+      );
+    }
+
     const { event, data } = body;
 
     console.log("[Premify Webhook] Event diterima:", event);
 
-    if (!data || !data.order_number) {
-      console.error("[Premify Webhook] Payload tidak valid: field order_number tidak ditemukan.", data);
-      return NextResponse.json({ message: "Invalid payload: Missing order_number" }, { status: 400 });
+    if (!event || !data || !data.order_number) {
+      console.error(
+        "[Premify Webhook] Payload tidak valid: event/order_number tidak ditemukan.",
+        body
+      );
+      return NextResponse.json(
+        { success: false, message: "Invalid payload" },
+        { status: 400 }
+      );
     }
 
-    const orderNumber = data.order_number;
+    const orderNumber = String(data.order_number).trim();
 
-    // 5. Skip transaksi sandbox (kecuali di mode development)
+    // 5. Skip sandbox di production
     const isDevelopment = process.env.NODE_ENV === "development";
     const isTest = data.is_test === true || data.metadata?.is_test === true;
 
     if (isTest && !isDevelopment) {
-      console.log(`[Premify Webhook] ℹ️ Transaksi SANDBOX diabaikan: ${orderNumber}`);
-      return NextResponse.json({ message: "Test event ignored" }, { status: 200 });
+      console.log(`[Premify Webhook] Transaksi sandbox diabaikan: ${orderNumber}`);
+      return NextResponse.json(
+        { success: true, message: "Test event ignored" },
+        { status: 200 }
+      );
     }
 
     if (isTest && isDevelopment) {
-      console.log(`[Premify Webhook] 🧪 Mode DEV: Transaksi SANDBOX tetap diproses: ${orderNumber}`);
+      console.log(`[Premify Webhook] Mode DEV: sandbox tetap diproses: ${orderNumber}`);
     }
 
-    // 6. Cari Transaksi di Database
+    // 6. Cari transaksi lokal
     const transaction = await prisma.transaction.findFirst({
       where: { premifyOrderId: orderNumber },
     });
 
     if (!transaction) {
-      console.warn(`[Premify Webhook] Transaksi ${orderNumber} tidak ditemukan di database.`);
-      return NextResponse.json({ message: "Transaction not found" }, { status: 200 });
+      console.warn(
+        `[Premify Webhook] Transaksi untuk Premify order ${orderNumber} tidak ditemukan di database lokal.`
+      );
+      return NextResponse.json(
+        { success: true, message: "Transaction not found locally" },
+        { status: 200 }
+      );
     }
 
-    // Cegah duplikasi proses
-    if (
-      transaction.premifyStatus === "COMPLETED" ||
-      transaction.premifyStatus === "FAILED"
-    ) {
-      console.log(`[Premify Webhook] Transaksi ${orderNumber} sudah diproses sebelumnya, diabaikan.`);
-      return NextResponse.json({ message: "Already processed" }, { status: 200 });
-    }
-
-    const productDetails = JSON.parse(transaction.productDetails || "{}");
+    const productDetails = safeJsonParse(transaction.productDetails, {});
     const customerWA = transaction.customerPhone;
 
-    // 7. Handle Event
+    const productName =
+      [productDetails.productName, productDetails.variantName]
+        .filter(Boolean)
+        .join(" - ") ||
+      productDetails.name ||
+      "Produk Digital";
+
+    const targetId = productDetails.targetId || "-";
+
+    // 7. Handle order.processing
+    if (event === "order.processing") {
+      if (transaction.premifyStatus !== "PROCESSING") {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { premifyStatus: "PROCESSING" },
+        });
+      }
+
+      console.log(
+        `[Premify Webhook] Order ${transaction.invoiceId} sedang diproses oleh Premify.`
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: "Processing event handled",
+      });
+    }
+
+    // 8. Handle order.completed
     if (event === "order.completed") {
+      if (transaction.premifyStatus === "COMPLETED") {
+        return NextResponse.json({
+          success: true,
+          message: "Already completed",
+        });
+      }
 
       const accountDetailsStr =
-        data.items?.[0]?.account_details || "Akses otomatis aktif.";
+        data.items?.[0]?.account_details ||
+        data.account_details ||
+        "Akses otomatis aktif.";
 
       const updatedDetails = {
         ...productDetails,
         sn: accountDetailsStr,
+        premifyCompletedAt: new Date().toISOString(),
       };
 
       await prisma.transaction.update({
@@ -101,45 +197,100 @@ export async function POST(req: Request) {
         },
       });
 
-      const msg = WATemplates.orderCompleted(
-        transaction.invoiceId,
-        productDetails.name,
-        productDetails.targetId,
-        accountDetailsStr !== "Akses otomatis aktif." ? accountDetailsStr : undefined
+      const msg = WATemplates.orderCompleted({
+        invoiceId: transaction.invoiceId,
+        productName,
+        targetId,
+        accountDetails:
+          accountDetailsStr !== "Akses otomatis aktif."
+            ? accountDetailsStr
+            : undefined,
+      });
+
+      await sendWhatsAppMessage(customerWA, msg).catch((err) => {
+        console.error(
+          `[Premify Webhook] Gagal kirim WA order completed ${transaction.invoiceId}:`,
+          err
+        );
+      });
+
+      console.log(
+        `[Premify Webhook] Pesanan ${transaction.invoiceId} selesai, notif WA terkirim.`
       );
 
-      await sendWhatsAppMessage(customerWA, msg).catch(console.error);
-      console.log(`[Premify Webhook] ✅ Pesanan ${transaction.invoiceId} selesai, notif WA terkirim.`);
+      return NextResponse.json({
+        success: true,
+        message: "Completed event handled",
+      });
+    }
 
-    } else if (event === "order.failed" || event === "order.cancelled") {
+    // 9. Handle order.failed / order.cancelled
+    if (event === "order.failed" || event === "order.cancelled") {
+      if (
+        transaction.premifyStatus === "FAILED" ||
+        transaction.premifyStatus === "CANCELLED"
+      ) {
+        return NextResponse.json({
+          success: true,
+          message: "Already failed/cancelled",
+        });
+      }
 
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
           premifyStatus: "FAILED",
-          paymentStatus: "FAILED",
           productDetails: JSON.stringify({
             ...productDetails,
             error: "Pesanan digagalkan/dibatalkan oleh penyedia (Premify).",
+            premifyFailedAt: new Date().toISOString(),
           }),
         },
       });
 
       await sendWhatsAppMessage(
         customerWA,
-        WATemplates.orderFailed(transaction.invoiceId)
-      ).catch(console.error);
+        WATemplates.orderFailed({
+          invoiceId: transaction.invoiceId,
+          productName,
+        })
+      ).catch((err) => {
+        console.error(
+          `[Premify Webhook] Gagal kirim WA order failed ${transaction.invoiceId}:`,
+          err
+        );
+      });
 
-      console.warn(`[Premify Webhook] ⚠️ Pesanan ${transaction.invoiceId} dibatalkan oleh server pusat.`);
+      console.warn(
+        `[Premify Webhook] Pesanan ${transaction.invoiceId} gagal/dibatalkan oleh Premify.`
+      );
 
-    } else {
-      console.log(`[Premify Webhook] Event '${event}' untuk ${orderNumber} tidak memerlukan aksi.`);
+      return NextResponse.json({
+        success: true,
+        message: "Failed/cancelled event handled",
+      });
     }
 
-    return NextResponse.json({ success: true, message: "Webhook processed" }, { status: 200 });
+    // 10. Event lain diabaikan
+    console.log(
+      `[Premify Webhook] Event '${event}' untuk ${orderNumber} tidak memerlukan aksi.`
+    );
 
+    return NextResponse.json(
+      { success: true, message: "Event ignored" },
+      { status: 200 }
+    );
   } catch (error: any) {
-    console.error("[Premify Webhook] Internal Error:", error.message);
-    return NextResponse.json({ success: false, message: "Internal Server Error" }, { status: 500 });
+    console.error("[Premify Webhook] Internal Error:", {
+      name: error?.name,
+      message: error?.message,
+      cause: error?.cause,
+      stack: error?.stack,
+    });
+
+    return NextResponse.json(
+      { success: false, message: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
