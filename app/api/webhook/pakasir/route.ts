@@ -14,14 +14,20 @@ export async function POST(request: Request) {
     try {
       body = JSON.parse(rawBody);
     } catch {
-      return NextResponse.json({ error: 'Payload bukan JSON valid' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Payload bukan JSON valid' },
+        { status: 400 }
+      );
     }
 
     const { order_id, status, project, is_sandbox } = body;
 
     if (!order_id || !status || !project) {
       console.warn('[Webhook Pakasir] Payload tidak lengkap:', body);
-      return NextResponse.json({ error: 'Payload tidak valid' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Payload tidak valid' },
+        { status: 400 }
+      );
     }
 
     if (status !== 'completed') {
@@ -39,20 +45,33 @@ export async function POST(request: Request) {
     ]);
 
     if (!transaction) {
-      console.error(`[Webhook Pakasir] Transaksi ${order_id} tidak ditemukan.`);
-      return NextResponse.json({ error: 'Transaksi tidak ditemukan' }, { status: 404 });
+      console.error(
+        `[Webhook Pakasir] Transaksi ${order_id} tidak ditemukan.`
+      );
+      return NextResponse.json(
+        { error: 'Transaksi tidak ditemukan' },
+        { status: 404 }
+      );
     }
 
     if (!settings?.pakasirApiKey || !settings?.pakasirProjectSlug) {
-      console.error('[Webhook Pakasir] Kredensial API Pakasir belum dikonfigurasi.');
-      return NextResponse.json({ error: 'Sistem belum siap' }, { status: 500 });
+      console.error(
+        '[Webhook Pakasir] Kredensial API Pakasir belum dikonfigurasi.'
+      );
+      return NextResponse.json(
+        { error: 'Sistem belum siap' },
+        { status: 500 }
+      );
     }
 
     if (project !== settings.pakasirProjectSlug) {
       console.warn(
         `[Webhook Pakasir] Project tidak cocok. Diterima: "${project}", Diharapkan: "${settings.pakasirProjectSlug}"`
       );
-      return NextResponse.json({ error: 'Project tidak valid' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Project tidak valid' },
+        { status: 400 }
+      );
     }
 
     if (transaction.paymentStatus === 'COMPLETED') {
@@ -87,8 +106,13 @@ export async function POST(request: Request) {
       apiTransaction?.status !== 'completed' ||
       apiAmount !== dbAmount
     ) {
-      console.warn(`[Webhook Pakasir] Verifikasi gagal untuk order_id: ${order_id}`);
-      return NextResponse.json({ error: 'Verifikasi transaksi gagal' }, { status: 400 });
+      console.warn(
+        `[Webhook Pakasir] Verifikasi gagal untuk order_id: ${order_id}`
+      );
+      return NextResponse.json(
+        { error: 'Verifikasi transaksi gagal' },
+        { status: 400 }
+      );
     }
 
     const updateResult = await prisma.transaction.updateMany({
@@ -103,7 +127,9 @@ export async function POST(request: Request) {
     });
 
     if (updateResult.count === 0) {
-      console.log(`[Webhook Pakasir] Transaksi ${order_id} sudah diproses request lain.`);
+      console.log(
+        `[Webhook Pakasir] Transaksi ${order_id} sudah diproses request lain.`
+      );
       return NextResponse.json({
         received: true,
         message: 'Sudah diproses sebelumnya (race-safe).',
@@ -111,13 +137,35 @@ export async function POST(request: Request) {
     }
 
     try {
-      console.log(`[Webhook Pakasir] Meneruskan order ${order_id} ke sistem Premify...`);
+      console.log(
+        `[Webhook Pakasir] Meneruskan order ${order_id} ke sistem Premify...`
+      );
 
-      await processPremifyOrder(transaction.id, transaction.productCode);
+      const premifyResult = await processPremifyOrder(
+        transaction.id,
+        transaction.productCode
+      );
 
-      console.log(`[Webhook Pakasir] Order ${order_id} berhasil diteruskan ke Premify.`);
+      if (!premifyResult?.success) {
+        console.error(
+          `[Webhook Pakasir] Premify gagal untuk ${order_id}:`,
+          premifyResult
+        );
+
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { premifyStatus: 'FAILED' },
+        });
+      } else {
+        console.log(
+          `[Webhook Pakasir] Order ${order_id} berhasil diteruskan ke Premify.`
+        );
+      }
     } catch (premifyError: any) {
-      console.error(`[Webhook Pakasir] Gagal memproses Premify untuk ${order_id}:`, premifyError);
+      console.error(
+        `[Webhook Pakasir] Gagal memproses Premify untuk ${order_id}:`,
+        premifyError
+      );
 
       await prisma.transaction.update({
         where: { id: transaction.id },
@@ -129,23 +177,39 @@ export async function POST(request: Request) {
       let productName = 'Produk Digital';
 
       if (transaction.productDetails) {
-        const parsed =
-          typeof transaction.productDetails === 'string'
-            ? JSON.parse(transaction.productDetails)
-            : transaction.productDetails;
+        try {
+          const parsed =
+            typeof transaction.productDetails === 'string'
+              ? JSON.parse(transaction.productDetails)
+              : transaction.productDetails;
 
-        productName =
-          [parsed.productName, parsed.variantName].filter(Boolean).join(' - ') ||
-          parsed.name ||
-          productName;
+          productName =
+            [parsed.productName, parsed.variantName]
+              .filter(Boolean)
+              .join(' - ') || parsed.name || productName;
+        } catch (parseError) {
+          console.warn(
+            `[Webhook Pakasir] Gagal parse productDetails untuk ${order_id}:`,
+            parseError
+          );
+        }
       }
 
-      const processingMessage = WATemplates.orderProcessing(order_id, productName);
+      const processingMessage = WATemplates.orderProcessing({
+        invoiceId: order_id,
+        productName,
+      });
 
       await sendWhatsAppMessage(transaction.customerPhone, processingMessage);
-      console.log(`[Webhook Pakasir] Pembayaran ${order_id} sukses. WA processing terkirim.`);
+
+      console.log(
+        `[Webhook Pakasir] Pembayaran ${order_id} sukses. WA processing terkirim.`
+      );
     } catch (waError) {
-      console.error(`[Webhook Pakasir] Pembayaran sukses tapi gagal kirim WA ${order_id}:`, waError);
+      console.error(
+        `[Webhook Pakasir] Pembayaran sukses tapi gagal kirim WA ${order_id}:`,
+        waError
+      );
     }
 
     return NextResponse.json({
@@ -160,6 +224,9 @@ export async function POST(request: Request) {
       stack: error?.stack,
     });
 
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
