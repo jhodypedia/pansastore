@@ -5,9 +5,24 @@ import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-function safeJsonParse<T = any>(value: string | null | undefined, fallback: T): T {
+type TransactionProductDetails = {
+  productId?: string;
+  productName?: string;
+  variantId?: string;
+  variantName?: string;
+  targetId?: string;
+  customerPhone?: string;
+  name?: string;
+  sn?: string;
+  error?: string;
+  premifyCompletedAt?: string;
+  premifyFailedAt?: string;
+  [key: string]: unknown;
+};
+
+function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
   try {
-    return value ? JSON.parse(value) : fallback;
+    return value ? (JSON.parse(value) as T) : fallback;
   } catch {
     return fallback;
   }
@@ -35,7 +50,6 @@ function verifyPremifySignature(
 
 export async function POST(req: Request) {
   try {
-    // 1. Ambil raw body
     const rawBody = await req.text();
     const signatureHeader = req.headers.get("x-premify-signature") || "";
 
@@ -47,7 +61,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Ambil API key / secret Premify
     const settings = await prisma.appSetting.findFirst();
 
     const premifySecret =
@@ -63,7 +76,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Verifikasi HMAC SHA256
     const isValidSignature = verifyPremifySignature(
       rawBody,
       signatureHeader,
@@ -78,7 +90,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Parse payload
     let body: any;
     try {
       body = JSON.parse(rawBody);
@@ -106,7 +117,6 @@ export async function POST(req: Request) {
 
     const orderNumber = String(data.order_number).trim();
 
-    // 5. Skip sandbox di production
     const isDevelopment = process.env.NODE_ENV === "development";
     const isTest = data.is_test === true || data.metadata?.is_test === true;
 
@@ -122,7 +132,6 @@ export async function POST(req: Request) {
       console.log(`[Premify Webhook] Mode DEV: sandbox tetap diproses: ${orderNumber}`);
     }
 
-    // 6. Cari transaksi lokal
     const transaction = await prisma.transaction.findFirst({
       where: { premifyOrderId: orderNumber },
     });
@@ -137,7 +146,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const productDetails = safeJsonParse(transaction.productDetails, {});
+    const productDetails = safeJsonParse<TransactionProductDetails>(
+      transaction.productDetails,
+      {}
+    );
+
     const customerWA = transaction.customerPhone;
 
     const productName =
@@ -149,7 +162,6 @@ export async function POST(req: Request) {
 
     const targetId = productDetails.targetId || "-";
 
-    // 7. Handle order.processing
     if (event === "order.processing") {
       if (transaction.premifyStatus !== "PROCESSING") {
         await prisma.transaction.update({
@@ -168,7 +180,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 8. Handle order.completed
     if (event === "order.completed") {
       if (transaction.premifyStatus === "COMPLETED") {
         return NextResponse.json({
@@ -182,7 +193,7 @@ export async function POST(req: Request) {
         data.account_details ||
         "Akses otomatis aktif.";
 
-      const updatedDetails = {
+      const updatedDetails: TransactionProductDetails = {
         ...productDetails,
         sn: accountDetailsStr,
         premifyCompletedAt: new Date().toISOString(),
@@ -224,7 +235,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 9. Handle order.failed / order.cancelled
     if (event === "order.failed" || event === "order.cancelled") {
       if (
         transaction.premifyStatus === "FAILED" ||
@@ -236,15 +246,17 @@ export async function POST(req: Request) {
         });
       }
 
+      const updatedDetails: TransactionProductDetails = {
+        ...productDetails,
+        error: "Pesanan digagalkan/dibatalkan oleh penyedia (Premify).",
+        premifyFailedAt: new Date().toISOString(),
+      };
+
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
           premifyStatus: "FAILED",
-          productDetails: JSON.stringify({
-            ...productDetails,
-            error: "Pesanan digagalkan/dibatalkan oleh penyedia (Premify).",
-            premifyFailedAt: new Date().toISOString(),
-          }),
+          productDetails: JSON.stringify(updatedDetails),
         },
       });
 
@@ -271,7 +283,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 10. Event lain diabaikan
     console.log(
       `[Premify Webhook] Event '${event}' untuk ${orderNumber} tidak memerlukan aksi.`
     );
