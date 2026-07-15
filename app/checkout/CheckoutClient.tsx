@@ -5,17 +5,39 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { processCheckout } from "@/actions/checkout";
-import QRISInvoice from "@/components/QRISInvoice"; 
+import QRISInvoice from "@/components/QRISInvoice";
 
-// Menggunakan font Plus Jakarta Sans untuk tampilan modern, bersih, dan premium
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sans",
 });
 
+type Product = {
+  id: string;
+  name: string;
+  type?: string | null;
+  category?: string | null;
+};
+
+type CheckoutSuccessResult = {
+  success: true;
+  message: string;
+  payment: any;
+  invoiceId: string;
+  invoiceUrl: string;
+  amount: number;
+};
+
+type CheckoutErrorResult = {
+  success: false;
+  message: string;
+};
+
+type CheckoutResult = CheckoutSuccessResult | CheckoutErrorResult;
+
 interface CheckoutClientProps {
-  product: any;
+  product: Product;
   variantId?: string;
   variantName: string;
   price: number;
@@ -33,36 +55,29 @@ export default function CheckoutClient({
 }: CheckoutClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [invoiceData, setInvoiceData] = useState<any>(null);
+  const [invoiceData, setInvoiceData] = useState<any | null>(null);
 
-  // ==========================================
-  // SMART DETECTOR: DETEKSI TIPE PRODUK
-  // ==========================================
   const productType = product?.type?.toUpperCase() || "";
   const isInviteType = productType.includes("INVITE");
 
-  // ==========================================
-  // AUTO-FILL LOGIC:
-  // ==========================================
   const [targetId, setTargetId] = useState(isInviteType ? defaultEmail : "");
   const [whatsapp, setWhatsapp] = useState(defaultPhone);
 
   const handleWhatsappChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Sanitasi input: Hanya angka agar aman dari typo/karakter aneh
     setWhatsapp(e.target.value.replace(/[^0-9]/g, ""));
   };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const finalTargetId = isInviteType ? targetId : whatsapp;
+    const finalTargetId = isInviteType ? targetId.trim() : whatsapp.trim();
 
     if (isInviteType && !finalTargetId) {
       toast.error("Harap isi Alamat Email tujuan.");
       return;
     }
 
-    if (!whatsapp) {
+    if (!whatsapp.trim()) {
       toast.error("Harap isi Nomor WhatsApp Anda.");
       return;
     }
@@ -78,26 +93,28 @@ export default function CheckoutClient({
     formData.append("productId", product.id);
     if (variantId) formData.append("variantId", variantId);
     formData.append("targetId", finalTargetId);
-    formData.append("whatsapp", whatsapp);
-    formData.append("method", "qris"); 
+    formData.append("whatsapp", whatsapp.trim());
+    formData.append("method", "qris");
 
     try {
-      const res = await processCheckout(formData);
+      const res = (await processCheckout(formData)) as CheckoutResult;
       clearInterval(stepInterval);
 
-      if (res.success && res.payment) {
+      if (res.success) {
         setLoadingStep(4);
         toast.success("Invoice berhasil dibuat!", { icon: "🔒" });
 
-        // Tampilkan QRIS secara halus setelah animasi selesai
         setTimeout(() => {
           setInvoiceData(res.payment);
+          setIsLoading(false);
         }, 600);
-      } else {
-        toast.error(res.message || "Gagal memproses transaksi.");
-        setIsLoading(false);
-        setLoadingStep(0);
+
+        return;
       }
+
+      toast.error(res.message || "Gagal memproses transaksi.");
+      setIsLoading(false);
+      setLoadingStep(0);
     } catch (error) {
       clearInterval(stepInterval);
       toast.error("Koneksi bermasalah. Silakan coba kembali.");
@@ -108,25 +125,29 @@ export default function CheckoutClient({
 
   const getButtonLabel = () => {
     switch (loadingStep) {
-      case 1: return "Mengamankan Data...";
-      case 2: return "Mendaftarkan Invoice...";
-      case 3: return "Menerbitkan QRIS...";
-      case 4: return "Menyiapkan Pembayaran...";
-      default: return "Bayar Sekarang";
+      case 1:
+        return "Mengamankan Data...";
+      case 2:
+        return "Mendaftarkan Invoice...";
+      case 3:
+        return "Menerbitkan QRIS...";
+      case 4:
+        return "Menyiapkan Pembayaran...";
+      default:
+        return "Bayar Sekarang";
     }
   };
 
-  // ==========================================
-  // RENDER VIEW: TAMPILAN INVOICE QRIS
-  // ==========================================
   if (invoiceData) {
     return (
-      // FIX SCROLL: Ditambahkan overflow-x-hidden pada parent utama
-      <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden`}>
+      <div
+        className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden`}
+      >
         <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-bold text-emerald-900/70 bg-emerald-900/[0.04] px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-emerald-900/10 shadow-sm">
-              <i className="ri-shield-keyhole-fill text-emerald-700"></i> Menunggu Pembayaran
+              <i className="ri-shield-keyhole-fill text-emerald-700"></i>
+              Menunggu Pembayaran
             </div>
           </div>
         </nav>
@@ -138,14 +159,10 @@ export default function CheckoutClient({
     );
   }
 
-  // ==========================================
-  // RENDER VIEW: TAMPILAN CHECKOUT FORM UTAMA
-  // ==========================================
   return (
-    // FIX SCROLL: Ditambahkan overflow-x-hidden pada parent utama
-    <div className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden`}>
-      
-      {/* NAVIGATION */}
+    <div
+      className={`${fontSans.variable} min-h-screen bg-[#F7F5EF] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden`}
+    >
       <nav className="bg-[#F7F5EF]/85 backdrop-blur-xl border-b border-emerald-900/10 py-4 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -154,7 +171,8 @@ export default function CheckoutClient({
             </span>
           </Link>
           <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-bold text-emerald-900/70 bg-emerald-900/[0.04] px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-emerald-900/10 shadow-sm">
-            <i className="ri-shield-keyhole-fill text-emerald-700"></i> Checkout Terenkripsi
+            <i className="ri-shield-keyhole-fill text-emerald-700"></i>
+            Checkout Terenkripsi
           </div>
         </div>
       </nav>
@@ -168,21 +186,22 @@ export default function CheckoutClient({
         <h1 className="text-3xl md:text-5xl font-extrabold text-[#0A1F1A] tracking-tight mb-2">
           Selesaikan Pesanan Anda
         </h1>
+
         <p className="text-sm md:text-base text-emerald-900/60 font-medium mb-10 md:mb-14 max-w-lg">
           {isInviteType
             ? "Lengkapi alamat email dan kontak pengiriman untuk pesanan Anda."
             : "Sistem otomatis aktif. Masukkan nomor WhatsApp Anda untuk menerima detail akses pesanan."}
         </p>
 
-        <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10">
-          
-          {/* RINGKASAN TRANSKASI */}
+        <form
+          onSubmit={handleCheckout}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10"
+        >
           <div className="order-1 lg:order-2 lg:col-span-5 relative">
             <div className="relative lg:sticky lg:top-[96px] rounded-[28px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(10,31,26,0.35)]">
               <div className="h-[3px] w-full bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600" />
 
               <div className="bg-[#0A1F1A] p-6 md:p-8 text-white relative overflow-hidden">
-                {/* Elemen glow/blur yang sering memicu bug scroll horizontal di HP */}
                 <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-emerald-600/20 blur-[80px] pointer-events-none" />
 
                 <div className="flex items-center justify-between mb-6 relative z-10">
@@ -195,13 +214,19 @@ export default function CheckoutClient({
                 <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 md:p-5 mb-6 relative z-10">
                   <div className="flex gap-4 items-center mb-4 pb-4 border-b border-dashed border-[#C8A24D]/25">
                     <div className="w-12 h-12 rounded-xl bg-white/[0.06] flex items-center justify-center shrink-0 border border-white/5">
-                      <i className={`${isInviteType ? "ri-mail-star-fill" : "ri-key-2-fill"} text-2xl text-emerald-400`}></i>
+                      <i
+                        className={`${
+                          isInviteType ? "ri-mail-star-fill" : "ri-key-2-fill"
+                        } text-2xl text-emerald-400`}
+                      ></i>
                     </div>
                     <div className="min-w-0">
                       <div className="text-[9px] md:text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest mb-0.5">
                         {product.category || "Premium App"}
                       </div>
-                      <div className="font-bold text-sm md:text-base truncate">{product.name}</div>
+                      <div className="font-bold text-sm md:text-base truncate">
+                        {product.name}
+                      </div>
                     </div>
                   </div>
 
@@ -218,7 +243,9 @@ export default function CheckoutClient({
                     Total Pembayaran
                   </div>
                   <div className="text-3xl md:text-[2.5rem] leading-none font-extrabold text-emerald-400 tracking-tight">
-                    <span className="text-base md:text-lg mr-1 text-emerald-300/80">Rp</span>
+                    <span className="text-base md:text-lg mr-1 text-emerald-300/80">
+                      Rp
+                    </span>
                     {price.toLocaleString("id-ID")}
                   </div>
                 </div>
@@ -239,9 +266,10 @@ export default function CheckoutClient({
                     </>
                   )}
                 </button>
-                
+
                 <div className="mt-6 flex items-center justify-center gap-1.5 text-[9px] md:text-[10px] font-bold text-white/35 uppercase tracking-widest relative z-10">
-                  <i className="ri-shield-check-fill text-emerald-500"></i> Sistem Pembayaran Terenkripsi
+                  <i className="ri-shield-check-fill text-emerald-500"></i>
+                  Sistem Pembayaran Terenkripsi
                 </div>
               </div>
 
@@ -253,20 +281,23 @@ export default function CheckoutClient({
             </div>
           </div>
 
-          {/* FORM INPUT INFORMASI TUJUAN */}
           <div className="order-2 lg:order-1 lg:col-span-7 space-y-6 md:space-y-8">
-            
             {isInviteType ? (
               <div className="bg-white p-6 md:p-8 rounded-[28px] border border-emerald-900/10 shadow-[0_4px_24px_rgba(10,31,26,0.04)]">
                 <div className="flex items-center gap-3 mb-6 border-b border-emerald-900/[0.06] pb-4">
                   <div className="w-9 h-9 rounded-full border border-emerald-700/30 text-emerald-800 flex items-center justify-center font-bold text-base">
                     1
                   </div>
-                  <h3 className="font-bold text-lg text-[#0A1F1A]">Alamat Email Tujuan</h3>
+                  <h3 className="font-bold text-lg text-[#0A1F1A]">
+                    Alamat Email Tujuan
+                  </h3>
                 </div>
 
                 <div>
-                  <label htmlFor="targetId" className="block text-[11px] font-bold text-emerald-900/40 uppercase tracking-widest mb-2">
+                  <label
+                    htmlFor="targetId"
+                    className="block text-[11px] font-bold text-emerald-900/40 uppercase tracking-widest mb-2"
+                  >
                     Email Penerima Premium
                   </label>
                   <div className="relative">
@@ -284,10 +315,6 @@ export default function CheckoutClient({
                       className="w-full pl-12 pr-4 py-4 bg-[#F7F5EF] border border-emerald-900/10 rounded-2xl text-sm font-semibold text-[#0A1F1A] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700/30 focus:border-emerald-700 transition-all placeholder:font-medium placeholder:text-emerald-900/30 disabled:opacity-50"
                     />
                   </div>
-                  <p className="text-[10px] md:text-[11px] font-semibold text-amber-700 mt-2.5 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 flex items-start gap-1.5">
-                    <i className="ri-error-warning-fill mt-0.5 shrink-0"></i>
-                    Link undangan (Invite) premium akan dikirimkan langsung ke email ini. Pastikan alamat email tepat.
-                  </p>
                 </div>
               </div>
             ) : (
@@ -297,16 +324,23 @@ export default function CheckoutClient({
                   <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center">
                     <i className="ri-information-fill"></i>
                   </div>
-                  <h3 className="font-bold text-lg text-[#0A1F1A]">Sistem Pengiriman Otomatis</h3>
+                  <h3 className="font-bold text-lg text-[#0A1F1A]">
+                    Sistem Pengiriman Otomatis
+                  </h3>
                 </div>
 
                 <div className="text-emerald-900/70 text-sm font-medium leading-relaxed space-y-3">
                   <p>
-                    Produk ini berjenis <span className="font-bold bg-emerald-700/10 text-emerald-800 px-2 py-0.5 rounded-md uppercase text-xs">{product.type || "Akun Private"}</span>. Pengisian alamat email/ID tidak diperlukan.
+                    Produk ini berjenis{" "}
+                    <span className="font-bold bg-emerald-700/10 text-emerald-800 px-2 py-0.5 rounded-md uppercase text-xs">
+                      {product.type || "Akun Private"}
+                    </span>
+                    . Pengisian alamat email/ID tidak diperlukan.
                   </p>
                   <p className="flex items-start gap-2">
                     <i className="ri-checkbox-circle-fill text-emerald-600 mt-0.5"></i>
-                    Detail akun kredensial (Username & Password) atau Kode Serial unik akan otomatis terkirim terenkripsi aman langsung ke nomor WhatsApp Anda sesaat setelah pembayaran divalidasi.
+                    Detail akun kredensial atau kode serial akan otomatis dikirim
+                    ke nomor WhatsApp Anda setelah pembayaran divalidasi.
                   </p>
                 </div>
               </div>
@@ -317,11 +351,16 @@ export default function CheckoutClient({
                 <div className="w-9 h-9 rounded-full border border-emerald-700/30 text-emerald-800 flex items-center justify-center font-bold text-base">
                   {isInviteType ? "2" : "1"}
                 </div>
-                <h3 className="font-bold text-lg text-[#0A1F1A]">Kontak WhatsApp</h3>
+                <h3 className="font-bold text-lg text-[#0A1F1A]">
+                  Kontak WhatsApp
+                </h3>
               </div>
 
               <div>
-                <label htmlFor="whatsapp" className="block text-[11px] font-bold text-emerald-900/40 uppercase tracking-widest mb-2">
+                <label
+                  htmlFor="whatsapp"
+                  className="block text-[11px] font-bold text-emerald-900/40 uppercase tracking-widest mb-2"
+                >
                   Nomor WhatsApp Anda
                 </label>
                 <div className="relative">
@@ -341,29 +380,34 @@ export default function CheckoutClient({
                     className="w-full pl-12 pr-4 py-4 bg-[#F7F5EF] border border-emerald-900/10 rounded-2xl text-sm font-semibold text-[#0A1F1A] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700/30 focus:border-emerald-700 transition-all placeholder:font-medium placeholder:text-emerald-900/30 disabled:opacity-50"
                   />
                 </div>
-                <p className="text-[10px] md:text-[11px] text-emerald-900/45 mt-2.5 font-medium">
-                  {isInviteType
-                    ? "Digunakan sebagai tujuan pengiriman notifikasi invoice transaksi dan status pesanan."
-                    : "PENTING: Invoice beserta detail Akun/Voucher Premium Anda akan dikirimkan secara langsung dan rahasia ke nomor WhatsApp ini."}
-                </p>
               </div>
             </div>
-
           </div>
         </form>
       </div>
 
       <style jsx>{`
         @keyframes sealStamp {
-          0% { transform: scale(2) rotate(-12deg); opacity: 0; }
-          60% { transform: scale(0.85) rotate(4deg); opacity: 1; }
-          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          0% {
+            transform: scale(2) rotate(-12deg);
+            opacity: 0;
+          }
+          60% {
+            transform: scale(0.85) rotate(4deg);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+          }
         }
         .seal-stamp {
           animation: sealStamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         @media (prefers-reduced-motion: reduce) {
-          .seal-stamp { animation: none; }
+          .seal-stamp {
+            animation: none;
+          }
         }
       `}</style>
     </div>
