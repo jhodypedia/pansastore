@@ -18,6 +18,8 @@ type Product = {
   name: string;
   type?: string | null;
   category?: string | null;
+  imageUrl?: string | null;
+  description?: string | null;
 };
 
 type PaymentData = {
@@ -71,6 +73,35 @@ const CHECKOUT_STEPS = [
   "Menyiapkan pembayaran",
   "Menyelesaikan proses",
 ] as const;
+
+function ProductVisual({
+  product,
+  isInviteType,
+}: {
+  product: Product;
+  isInviteType: boolean;
+}) {
+  if (product.imageUrl) {
+    return (
+      <img
+        src={product.imageUrl}
+        alt={product.name}
+        loading="lazy"
+        width={320}
+        height={320}
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-700 via-emerald-800 to-slate-900 text-white">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 backdrop-blur-sm">
+        <i className={`${isInviteType ? "ri-mail-star-fill" : "ri-key-2-fill"} text-2xl`} />
+      </div>
+    </div>
+  );
+}
 
 export default function CheckoutClient({
   product,
@@ -315,7 +346,7 @@ export default function CheckoutClient({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-12">
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-10">
         <section className="mb-8 md:mb-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -329,13 +360,17 @@ export default function CheckoutClient({
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-500 md:text-base">
-            Lengkapi detail pesanan dan lanjutkan ke pembayaran QRIS. Halaman ini dirancang agar
-            ringkas, jelas, dan tetap nyaman dipakai di layar kecil maupun desktop.
+            Lengkapi detail pesanan dan lanjutkan ke pembayaran QRIS. Tampilan dibuat lebih nyaman
+            untuk mobile, tetap jelas saat discroll, dan ringkasan pembayaran selalu mudah dipantau.
           </p>
         </section>
 
-        <form onSubmit={handleCheckout} noValidate className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
-          <section className="order-2 lg:order-1 lg:col-span-7 space-y-6">
+        <form
+          onSubmit={handleCheckout}
+          noValidate
+          className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8"
+        >
+          <section className="order-2 space-y-6 lg:order-1 lg:col-span-7">
             {(errorCount > 0 || formMessage) && (
               <div
                 ref={errorSummaryRef}
@@ -357,35 +392,56 @@ export default function CheckoutClient({
               </div>
             )}
 
-            <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.04)] md:p-8">
-              <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-black text-white">
-                  1
-                </div>
-                <div>
-                  <h2 className="text-lg font-black tracking-tight text-slate-900">Detail produk</h2>
-                  <p className="text-sm font-medium text-slate-500">
-                    Ringkasan item yang akan dibayar.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-emerald-300">
-                    <i className={`${isInviteType ? "ri-mail-star-fill" : "ri-key-2-fill"} text-2xl`} />
+            <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.04)]">
+              <div className="h-1 bg-gradient-to-r from-emerald-700 via-[#c8a24d] to-emerald-700" />
+              <div className="p-6 md:p-8">
+                <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-black text-white">
+                    1
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800/70">
-                      {product.category || "Produk Digital"}
-                    </div>
-                    <h3 className="text-lg font-black tracking-tight text-slate-900">
-                      {product.name}
-                    </h3>
-                    <p className="mt-1 text-sm font-medium text-slate-500">
-                      Paket: <span className="font-bold text-slate-800">{variantName}</span>
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight text-slate-900">Detail produk</h2>
+                    <p className="text-sm font-medium text-slate-500">
+                      Ringkasan item yang akan dibayar.
                     </p>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr]">
+                    <div className="relative h-40 sm:h-full min-h-[120px] overflow-hidden">
+                      <ProductVisual product={product} isInviteType={isInviteType} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 to-transparent" />
+                    </div>
+
+                    <div className="p-5">
+                      <div className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800/70">
+                        {product.category || "Produk Digital"}
+                      </div>
+
+                      <h3 className="text-lg font-black tracking-tight text-slate-900">
+                        {product.name}
+                      </h3>
+
+                      <p className="mt-1 text-sm font-medium text-slate-500">
+                        Paket: <span className="font-bold text-slate-800">{variantName}</span>
+                      </p>
+
+                      {product.description ? (
+                        <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
+                          {product.description}
+                        </p>
+                      ) : null}
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-800">
+                          {product.type || "Digital"}
+                        </span>
+                        <span className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+                          QRIS Ready
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -617,26 +673,31 @@ export default function CheckoutClient({
                   </div>
                 </div>
 
-                <div className="px-6 py-6 md:px-7">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-4 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-80"
-                  >
-                    {isLoading ? (
-                      <>
-                        <i className="ri-loader-4-line animate-spin text-lg" />
-                        <span aria-live="polite">{getButtonLabel()}</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="ri-flashlight-fill text-lg" />
-                        Lanjut ke Pembayaran
-                      </>
-                    )}
-                  </button>
+                <div
+                  className="px-6 py-6 md:px-7 overscroll-contain"
+                  style={{ overscrollBehavior: "contain" }}
+                >
+                  <div className="hidden lg:block">
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-4 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-80"
+                    >
+                      {isLoading ? (
+                        <>
+                          <i className="ri-loader-4-line animate-spin text-lg" />
+                          <span aria-live="polite">{getButtonLabel()}</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="ri-flashlight-fill text-lg" />
+                          Lanjut ke Pembayaran
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 lg:mt-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                         Metode
@@ -665,6 +726,44 @@ export default function CheckoutClient({
               </div>
             </div>
           </aside>
+
+          <div className="order-3 lg:hidden sticky bottom-3 z-30">
+            <div className="rounded-[28px] border border-slate-200 bg-white/95 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between gap-3 px-2">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                    Total pembayaran
+                  </div>
+                  <div className="text-xl font-black tracking-tight text-slate-900">
+                    <span className="mr-1 text-xs text-slate-500">Rp</span>
+                    {formatPrice(price)}
+                  </div>
+                </div>
+
+                <div className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-800">
+                  QRIS
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-4 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-80"
+              >
+                {isLoading ? (
+                  <>
+                    <i className="ri-loader-4-line animate-spin text-lg" />
+                    <span aria-live="polite">{getButtonLabel()}</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="ri-flashlight-fill text-lg" />
+                    Lanjut ke Pembayaran
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </form>
       </main>
     </div>
