@@ -51,22 +51,20 @@ export default async function CheckoutProductPage({
   const finalPrice = selectedVariant?.price ?? product.sellPrice;
   const finalVariantId = selectedVariant?.id ?? null;
   const finalVariantName = selectedVariant?.name ?? product.name;
-  const finalStock = selectedVariant?.stock ?? product.stock;
 
   return (
     <CheckoutClient
       product={{
         id: product.id,
         name: product.name,
-        type: product.type,
-        category: product.category,
-        imageUrl: product.imageUrl,
-        description: product.description,
+        type: product.type ?? null,
+        category: product.category ?? null,
+        imageUrl: product.imageUrl ?? null,
+        description: product.description ?? null,
       }}
       variantId={finalVariantId}
       variantName={finalVariantName}
       price={finalPrice}
-      stock={finalStock}
     />
   );
 }
