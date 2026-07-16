@@ -91,10 +91,15 @@ const prettifyBaseName = (name: string) =>
     .trim();
 
 const getProductHref = (product: Product, variant?: Variant | null) => {
+  const baseId = variant?.productId || product.id;
   const params = new URLSearchParams();
-  params.set("product", variant?.productId || product.id);
-  if (variant?.id) params.set("variant", variant.id);
-  return `/checkout?${params.toString()}`;
+
+  if (variant?.id) {
+    params.set("variant", variant.id);
+  }
+
+  const qs = params.toString();
+  return `/checkout/${baseId}${qs ? `?${qs}` : ""}`;
 };
 
 const getVariantFromProduct = (product: Product): Variant => {
@@ -171,33 +176,6 @@ const TRUST_STATS = [
   { icon: "ri-repeat-2-fill", value: "24/7", label: "Sistem Berjalan" },
   { icon: "ri-user-heart-fill", value: "45.000+", label: "Pelanggan Aktif" },
   { icon: "ri-timer-flash-fill", value: "< 3 Detik", label: "Waktu Proses" },
-] as const;
-
-const TESTIMONIALS = [
-  {
-    name: "Rizky Aditya",
-    avatar: "RA",
-    role: "Mobile Gamer",
-    rating: 5,
-    text: "Top up paling cepat yang pernah saya coba. Bayar dan pesanan langsung diproses tanpa alur yang ribet.",
-    color: ["#0F766E", "#065F46"],
-  },
-  {
-    name: "Siti Nur Haliza",
-    avatar: "SN",
-    role: "Content Creator",
-    rating: 5,
-    text: "Harga konsisten rapi, sistem enak dipakai, dan cocok untuk kebutuhan langganan rutin.",
-    color: ["#7C3AED", "#6D28D9"],
-  },
-  {
-    name: "Budi Santoso",
-    avatar: "BS",
-    role: "Reseller Digital",
-    rating: 5,
-    text: "Cocok buat dijual lagi karena proses cepat, stok stabil, dan halaman produk jelas.",
-    color: ["#1D4ED8", "#1E40AF"],
-  },
 ] as const;
 
 function TrustBar() {
@@ -443,265 +421,216 @@ function ProductModal({
   const checkoutHref = getProductHref(product, selectedVariant);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[9999]">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose} />
 
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descId}
-        tabIndex={-1}
-        className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-t-[28px] sm:rounded-[34px] bg-white shadow-[0_35px_100px_rgba(15,23,42,0.35)] outline-none"
-      >
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden z-10" />
+      <div className="absolute inset-0 overflow-y-auto overscroll-contain">
+        <div className="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descId}
+            tabIndex={-1}
+            className="relative w-full max-w-5xl rounded-t-[28px] sm:rounded-[34px] bg-white shadow-[0_35px_100px_rgba(15,23,42,0.35)] outline-none max-h-[92vh] overflow-hidden"
+          >
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden z-10" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] max-h-[92vh]">
-          <div className="relative min-h-[280px] lg:min-h-[720px] overflow-hidden">
-            <ProductImage product={product} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/15 to-transparent" />
+            <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] h-full max-h-[92vh]">
+              <div className="relative min-h-[260px] lg:min-h-[720px] overflow-hidden">
+                <ProductImage product={product} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/15 to-transparent" />
 
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Tutup detail produk"
-              className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-md transition-colors hover:bg-white/25"
-            >
-              <i className="ri-close-line text-lg" />
-            </button>
-
-            <div className="absolute left-5 right-5 bottom-5 text-white">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] mb-3">
-                {product.category || "Katalog"}
-              </span>
-
-              <h3 id={titleId} className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
-                {product.name}
-              </h3>
-
-              <p
-                id={descId}
-                className="mt-3 max-w-xl text-sm md:text-base font-medium leading-7 text-white/80"
-              >
-                {product.description ||
-                  "Pilih paket yang paling sesuai, lalu lanjutkan ke checkout dari detail produk ini."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-5 md:p-6">
-              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 mb-5">
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
-                      Kategori
-                    </div>
-                    <div className="text-sm font-black text-slate-900">{product.category || "-"}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
-                      Paket
-                    </div>
-                    <div className="text-sm font-black text-slate-900">{product.variants?.length || 1}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
-                      Stok
-                    </div>
-                    <div className="text-sm font-black text-slate-900">{product.stock}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    Pilih Paket
-                  </p>
-                  <p className="text-[11px] font-bold text-slate-400">
-                    {product.variants?.length || 1} opsi tersedia
-                  </p>
-                </div>
-
-                {product.variants && product.variants.length > 0 ? (
-                  <div className="space-y-3">
-                    {product.variants.map((variant) => {
-                      const isSelected = selectedVariant?.id === variant.id;
-                      const outOfStock = variant.stock <= 0;
-
-                      return (
-                        <button
-                          key={`${variant.productId || product.id}-${variant.id}`}
-                          type="button"
-                          disabled={outOfStock}
-                          onClick={() => onSelectVariant(variant)}
-                          className={`w-full text-left rounded-[24px] border p-4 transition-all ${
-                            isSelected
-                              ? "border-emerald-600 bg-emerald-50 shadow-[0_0_0_4px_rgba(5,150,105,0.08)]"
-                              : "border-slate-200 bg-white hover:border-emerald-300"
-                          } ${outOfStock ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm md:text-base font-black text-slate-900 leading-tight">
-                                {variant.name}
-                              </div>
-                              <div className="mt-1 text-xs font-bold text-emerald-700">
-                                {variant.duration}
-                              </div>
-                            </div>
-
-                            {isSelected ? (
-                              <i className="ri-checkbox-circle-fill text-xl text-emerald-600 shrink-0" />
-                            ) : (
-                              <i className="ri-checkbox-blank-circle-line text-xl text-slate-300 shrink-0" />
-                            )}
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">
-                              {variant.type}
-                            </span>
-                            <span className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-                              Garansi {variant.warranty}
-                            </span>
-                          </div>
-
-                          <div className="mt-4 pt-4 border-t border-slate-100 flex items-end justify-between gap-3">
-                            <div>
-                              <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
-                                Harga
-                              </div>
-                              <div className="text-xl font-black tracking-tight text-emerald-800">
-                                <span className="text-xs mr-1">Rp</span>
-                                {formatPrice(variant.price)}
-                              </div>
-                            </div>
-
-                            <div
-                              className={`text-[11px] font-bold ${
-                                outOfStock ? "text-rose-500" : "text-slate-400"
-                              }`}
-                            >
-                              {outOfStock ? "Stok habis" : `Stok ${variant.stock}`}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-sm font-black text-slate-900">Produk tanpa varian</div>
-                    <div className="text-sm font-medium text-slate-500 mt-1">
-                      Harga mulai dari Rp{formatPrice(product.sellPrice)}.
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 bg-white p-5">
-              <div className="rounded-[24px] bg-slate-900 px-5 py-4 text-white mb-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
-                      Total
-                    </div>
-                    <div className="text-3xl font-black tracking-tight">
-                      <span className="text-sm mr-1 text-white/60">Rp</span>
-                      {formatPrice(selectedPrice)}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
-                      Status
-                    </div>
-                    <div className="text-sm font-black text-emerald-300">
-                      {selectedVariant?.stock === 0 ? "Tidak tersedia" : "Siap diproses"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full rounded-2xl bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200"
+                  aria-label="Tutup detail produk"
+                  className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-md transition-colors hover:bg-white/25"
                 >
-                  Tutup
+                  <i className="ri-close-line text-lg" />
                 </button>
 
-                <Link
-                  href={checkoutHref}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
-                >
-                  <i className="ri-lightning-fill" />
-                  Lanjut ke Checkout
-                </Link>
+                <div className="absolute left-5 right-5 bottom-5 text-white">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] mb-3">
+                    {product.category || "Katalog"}
+                  </span>
+
+                  <h3 id={titleId} className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                    {product.name}
+                  </h3>
+
+                  <p
+                    id={descId}
+                    className="mt-3 max-w-xl text-sm md:text-base font-medium leading-7 text-white/80"
+                  >
+                    {product.description ||
+                      "Pilih paket yang paling sesuai, lalu lanjutkan ke checkout dari detail produk ini."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col min-h-0 max-h-[92vh]">
+                <div className="flex-1 overflow-y-auto p-5 md:p-6 min-h-0">
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 mb-5">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
+                          Kategori
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{product.category || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
+                          Paket
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{product.variants?.length || 1}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
+                          Stok
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{product.stock}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Pilih Paket
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400">
+                        {product.variants?.length || 1} opsi tersedia
+                      </p>
+                    </div>
+
+                    {product.variants && product.variants.length > 0 ? (
+                      <div className="space-y-3 pb-2">
+                        {product.variants.map((variant) => {
+                          const isSelected = selectedVariant?.id === variant.id;
+                          const outOfStock = variant.stock <= 0;
+
+                          return (
+                            <button
+                              key={`${variant.productId || product.id}-${variant.id}`}
+                              type="button"
+                              disabled={outOfStock}
+                              onClick={() => onSelectVariant(variant)}
+                              className={`w-full text-left rounded-[24px] border p-4 transition-all ${
+                                isSelected
+                                  ? "border-emerald-600 bg-emerald-50 shadow-[0_0_0_4px_rgba(5,150,105,0.08)]"
+                                  : "border-slate-200 bg-white hover:border-emerald-300"
+                              } ${outOfStock ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm md:text-base font-black text-slate-900 leading-tight">
+                                    {variant.name}
+                                  </div>
+                                  <div className="mt-1 text-xs font-bold text-emerald-700">
+                                    {variant.duration}
+                                  </div>
+                                </div>
+
+                                {isSelected ? (
+                                  <i className="ri-checkbox-circle-fill text-xl text-emerald-600 shrink-0" />
+                                ) : (
+                                  <i className="ri-checkbox-blank-circle-line text-xl text-slate-300 shrink-0" />
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                                  {variant.type}
+                                </span>
+                                <span className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                                  Garansi {variant.warranty}
+                                </span>
+                              </div>
+
+                              <div className="mt-4 pt-4 border-t border-slate-100 flex items-end justify-between gap-3">
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
+                                    Harga
+                                  </div>
+                                  <div className="text-xl font-black tracking-tight text-emerald-800">
+                                    <span className="text-xs mr-1">Rp</span>
+                                    {formatPrice(variant.price)}
+                                  </div>
+                                </div>
+
+                                <div
+                                  className={`text-[11px] font-bold ${
+                                    outOfStock ? "text-rose-500" : "text-slate-400"
+                                  }`}
+                                >
+                                  {outOfStock ? "Stok habis" : `Stok ${variant.stock}`}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-sm font-black text-slate-900">Produk tanpa varian</div>
+                        <div className="text-sm font-medium text-slate-500 mt-1">
+                          Harga mulai dari Rp{formatPrice(product.sellPrice)}.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 bg-white p-5">
+                  <div className="rounded-[24px] bg-slate-900 px-5 py-4 text-white mb-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
+                          Total
+                        </div>
+                        <div className="text-3xl font-black tracking-tight">
+                          <span className="text-sm mr-1 text-white/60">Rp</span>
+                          {formatPrice(selectedPrice)}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
+                          Status
+                        </div>
+                        <div className="text-sm font-black text-emerald-300">
+                          {selectedVariant?.stock === 0 ? "Tidak tersedia" : "Siap diproses"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full rounded-2xl bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200"
+                    >
+                      Tutup
+                    </button>
+
+                    <Link
+                      href={checkoutHref}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
+                    >
+                      <i className="ri-lightning-fill" />
+                      Lanjut ke Checkout
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function TestimonialsSection() {
-  return (
-    <section className="py-16 md:py-24 bg-white border-t border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="mb-10 md:mb-14 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
-            <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-              Ulasan Pelanggan
-            </span>
-          </div>
-          <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            Pengalaman belanja yang
-            <br className="hidden md:block" />
-            konsisten dan jelas
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-          {TESTIMONIALS.map((t) => (
-            <article
-              key={t.name}
-              className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 md:p-7 shadow-[0_10px_30px_rgba(15,23,42,0.03)]"
-            >
-              <div className="flex items-center gap-1 text-yellow-400 mb-4">
-                {Array.from({ length: t.rating }).map((_, j) => (
-                  <i key={j} className="ri-star-fill text-sm" />
-                ))}
-              </div>
-
-              <p className="text-sm font-medium leading-7 text-slate-600 min-h-[112px]">
-                &ldquo;{t.text}&rdquo;
-              </p>
-
-              <div className="mt-5 pt-4 border-t border-slate-200 flex items-center gap-3">
-                <div
-                  className="h-11 w-11 rounded-full flex items-center justify-center text-white text-xs font-black shadow-sm"
-                  style={{ background: `linear-gradient(135deg, ${t.color[0]}, ${t.color[1]})` }}
-                >
-                  {t.avatar}
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900">{t.name}</div>
-                  <div className="text-[11px] font-semibold text-slate-400">{t.role}</div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -815,7 +744,6 @@ export default function StorefrontClient({
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
-
         * { box-sizing: border-box; }
         body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -877,15 +805,12 @@ export default function StorefrontClient({
               </Link>
 
               <div className="hidden md:flex items-center gap-6">
-                <Link
-                  href="/"
-                  className="text-sm font-bold text-slate-500 transition-colors hover:text-emerald-700"
-                >
+                <Link href="/" className="text-sm font-bold text-slate-500 hover:text-emerald-700 transition-colors">
                   Beranda
                 </Link>
                 <Link
                   href="/cek-pesanan"
-                  className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition-colors hover:text-emerald-700"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-emerald-700 transition-colors"
                 >
                   <i className="ri-search-eye-line" />
                   Cek Pesanan
@@ -895,7 +820,7 @@ export default function StorefrontClient({
               <div className="flex items-center gap-2 md:gap-3">
                 <Link
                   href="/cek-pesanan"
-                  className="md:hidden flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                  className="md:hidden flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all"
                   aria-label="Cek pesanan"
                 >
                   <i className="ri-search-eye-line text-base" />
@@ -903,7 +828,7 @@ export default function StorefrontClient({
 
                 <Link
                   href={primaryAccountHref}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-xs md:text-sm font-black text-white transition-all duration-300 hover:bg-emerald-800 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-xs md:text-sm font-black text-white hover:bg-emerald-800 transition-all active:scale-95"
                 >
                   <i className={`${isLoggedIn ? "ri-dashboard-line" : "ri-user-3-line"} text-sm`} />
                   <span className="hidden sm:inline">{primaryAccountLabel}</span>
@@ -912,7 +837,7 @@ export default function StorefrontClient({
                 {!isLoggedIn && (
                   <Link
                     href="/register"
-                    className="hidden md:inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-2.5 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-600 active:scale-95"
+                    className="hidden md:inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-600 transition-all active:scale-95"
                   >
                     <i className="ri-user-add-line text-sm" />
                     Daftar
@@ -1093,53 +1018,6 @@ export default function StorefrontClient({
             </div>
           )}
         </main>
-
-        <TestimonialsSection />
-
-        <section className="bg-[#F8FAFC] py-16 md:py-24 border-t border-slate-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="rounded-[34px] border border-slate-200 bg-white p-8 md:p-12 shadow-[0_20px_60px_rgba(15,23,42,0.04)]">
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 items-end">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
-                    <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                      Mulai belanja
-                    </span>
-                  </div>
-
-                  <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight text-slate-900 mb-4">
-                    Temukan paket yang tepat
-                    <br className="hidden md:block" />
-                    untuk kebutuhan Anda.
-                  </h2>
-
-                  <p className="max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-500">
-                    Telusuri katalog, buka detail produk, lalu pilih paket yang paling sesuai tanpa
-                    antarmuka yang terasa berlebihan.
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-3">
-                  <a
-                    href="#catalog"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
-                  >
-                    <i className="ri-shopping-bag-3-fill" />
-                    Jelajahi Katalog
-                  </a>
-
-                  <Link
-                    href="/cek-pesanan"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100"
-                  >
-                    <i className="ri-search-eye-line" />
-                    Cek Pesanan
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {selectedProduct && (
           <ProductModal
