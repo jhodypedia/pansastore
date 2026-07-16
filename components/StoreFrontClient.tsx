@@ -5,6 +5,7 @@ import Link from "next/link";
 
 interface Variant {
   id: string;
+  productId?: string;
   name: string;
   price: number;
   duration: string;
@@ -55,11 +56,108 @@ const getGradientStyle = (name: string) => {
 
 const formatPrice = (value: number) => value.toLocaleString("id-ID");
 
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ");
+
+const extractBaseProductName = (name: string) => {
+  const cleaned = normalizeText(name);
+
+  const base = cleaned
+    .replace(/\b(\d+\s*(hari|bulan|tahun|minggu|day|days|month|months|year|years))\b/gi, "")
+    .replace(/\b(private|sharing|lifetime|garansi|official|premium|akun|account|member|voucher)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return base || cleaned;
+};
+
+const prettifyBaseName = (name: string) =>
+  name
+    .replace(/\b\d+\s*(Hari|Bulan|Tahun|Minggu)\b/gi, "")
+    .replace(/\b(Private|Sharing|Lifetime|Garansi|Official|Premium|Akun|Account|Member|Voucher)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const getProductHref = (product: Product, variant?: Variant | null) => {
   const params = new URLSearchParams();
+  params.set("product", variant?.productId || product.id);
   if (variant?.id) params.set("variant", variant.id);
-  const qs = params.toString();
-  return `/checkout/${product.id}${qs ? `?${qs}` : ""}`;
+  return `/checkout?${params.toString()}`;
+};
+
+const getVariantFromProduct = (product: Product): Variant => {
+  const firstExistingVariant = product.variants?.[0];
+
+  return {
+    id: firstExistingVariant?.id || product.id,
+    productId: product.id,
+    name: product.name,
+    price: firstExistingVariant?.price ?? product.sellPrice,
+    duration: firstExistingVariant?.duration || "-",
+    type: firstExistingVariant?.type || product.type || "Digital",
+    warranty: firstExistingVariant?.warranty || "-",
+    stock: firstExistingVariant?.stock ?? product.stock ?? 0,
+  };
+};
+
+const groupProductsByBaseName = (products: Product[]): Product[] => {
+  const grouped = new Map<string, Product[]>();
+
+  for (const product of products) {
+    const key = extractBaseProductName(product.name);
+    const current = grouped.get(key) || [];
+    current.push(product);
+    grouped.set(key, current);
+  }
+
+  return Array.from(grouped.entries()).map(([baseName, items]) => {
+    const sortedItems = [...items].sort((a, b) => a.sellPrice - b.sellPrice);
+    const primary = sortedItems[0];
+
+    const mergedVariants = sortedItems
+      .flatMap((item) => {
+        if (item.variants && item.variants.length > 0) {
+          return item.variants.map((variant) => ({
+            ...variant,
+            productId: item.id,
+            name: variant.name || item.name,
+            price: variant.price ?? item.sellPrice,
+            type: variant.type || item.type || "Digital",
+            stock: variant.stock ?? item.stock ?? 0,
+            duration: variant.duration || "-",
+            warranty: variant.warranty || "-",
+          }));
+        }
+
+        return [getVariantFromProduct(item)];
+      })
+      .sort((a, b) => a.price - b.price);
+
+    const displayName = prettifyBaseName(primary.name) || primary.name;
+    const lowestPrice =
+      mergedVariants.length > 0
+        ? Math.min(...mergedVariants.map((variant) => variant.price))
+        : primary.sellPrice;
+
+    const totalStock = mergedVariants.reduce((sum, variant) => sum + (variant.stock || 0), 0);
+
+    return {
+      ...primary,
+      name: displayName,
+      sellPrice: lowestPrice,
+      stock: totalStock,
+      description:
+        primary.description ||
+        `Tersedia ${mergedVariants.length} pilihan paket untuk ${displayName}.`,
+      variants: mergedVariants,
+    };
+  });
 };
 
 const TRUST_STATS = [
@@ -280,8 +378,10 @@ function ProductModal({
 }) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -295,6 +395,7 @@ function ProductModal({
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
     };
   }, [onClose]);
 
@@ -306,10 +407,7 @@ function ProductModal({
       className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-4"
       aria-hidden={false}
     >
-      <div
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose} />
 
       <div
         ref={dialogRef}
@@ -322,10 +420,7 @@ function ProductModal({
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden z-10" />
 
         <div className="relative w-full h-52 sm:h-60 overflow-hidden flex-shrink-0">
-          <ProductImage
-            product={product}
-            className="w-full h-full object-cover"
-          />
+          <ProductImage product={product} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
 
           <button
@@ -397,7 +492,7 @@ function ProductModal({
 
                   return (
                     <button
-                      key={variant.id}
+                      key={`${variant.productId || product.id}-${variant.id}`}
                       type="button"
                       disabled={outOfStock}
                       onClick={() => onSelectVariant(variant)}
@@ -411,7 +506,9 @@ function ProductModal({
                         <span className="text-sm font-black text-slate-900 leading-snug">
                           {variant.name}
                         </span>
-                        {isSelected && <i className="ri-checkbox-circle-fill text-emerald-600 text-lg shrink-0" />}
+                        {isSelected && (
+                          <i className="ri-checkbox-circle-fill text-emerald-600 text-lg shrink-0" />
+                        )}
                       </div>
 
                       <div className="text-xs text-emerald-700 font-bold mt-2">{variant.duration}</div>
@@ -436,7 +533,11 @@ function ProductModal({
                           </div>
                         </div>
 
-                        <div className={`text-[10px] font-bold ${outOfStock ? "text-rose-500" : "text-slate-400"}`}>
+                        <div
+                          className={`text-[10px] font-bold ${
+                            outOfStock ? "text-rose-500" : "text-slate-400"
+                          }`}
+                        >
                           {outOfStock ? "Stok habis" : `Stok ${variant.stock}`}
                         </div>
                       </div>
@@ -512,6 +613,10 @@ export default function StorefrontClient({
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  const groupedProducts = useMemo(() => {
+    return groupProductsByBaseName(initialProducts);
+  }, [initialProducts]);
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -541,7 +646,7 @@ export default function StorefrontClient({
     });
 
     return () => observerRef.current?.disconnect();
-  }, [activeCategory, searchQuery, initialProducts]);
+  }, [activeCategory, searchQuery, groupedProducts]);
 
   const openProductDetail = (product: Product) => {
     setSelectedProduct(product);
@@ -554,22 +659,25 @@ export default function StorefrontClient({
   };
 
   const categories = useMemo(() => {
-    const cats = initialProducts.map((p) => p.category).filter(Boolean) as string[];
+    const cats = groupedProducts.map((p) => p.category).filter(Boolean) as string[];
     return ["SEMUA", ...Array.from(new Set(cats)).sort((a, b) => a.localeCompare(b))];
-  }, [initialProducts]);
+  }, [groupedProducts]);
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return initialProducts.filter((p) => {
+
+    return groupedProducts.filter((p) => {
       const matchCat = activeCategory === "SEMUA" || p.category === activeCategory;
       const matchSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
         (p.category || "").toLowerCase().includes(q) ||
-        (p.description || "").toLowerCase().includes(q);
+        (p.description || "").toLowerCase().includes(q) ||
+        (p.variants || []).some((v) => v.name.toLowerCase().includes(q));
+
       return matchCat && matchSearch;
     });
-  }, [initialProducts, searchQuery, activeCategory]);
+  }, [groupedProducts, searchQuery, activeCategory]);
 
   const primaryAccountHref = isLoggedIn
     ? userRole === "ADMIN"
@@ -884,11 +992,18 @@ export default function StorefrontClient({
                       {product.category || "Umum"}
                     </p>
 
-                    <h3 className="text-xs md:text-[13px] font-black text-slate-900 leading-snug mb-3 line-clamp-2">
+                    <h3 className="text-xs md:text-[13px] font-black text-slate-900 leading-snug mb-2 line-clamp-2">
                       {product.name}
                     </h3>
 
-                    <div className="mt-auto pt-2.5 border-t border-slate-100 flex items-end justify-between">
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                        <i className="ri-stack-fill text-[11px]" />
+                        {(product.variants?.length || 0) > 0 ? `${product.variants?.length} paket` : "1 paket"}
+                      </span>
+                    </div>
+
+                    <div className="mt-auto pt-2.5 border-t border-slate-100 flex items-end justify-between gap-3">
                       <div>
                         <div className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
                           Mulai dari
@@ -899,8 +1014,8 @@ export default function StorefrontClient({
                         </div>
                       </div>
 
-                      <div className="w-7 h-7 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-700 group-hover:border-emerald-700 group-hover:text-white transition-all duration-300 group-hover:-rotate-45 shadow-sm shrink-0">
-                        <i className="ri-arrow-right-line text-xs" />
+                      <div className="w-7 h-7 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-700 group-hover:border-emerald-700 group-hover:text-white transition-all shrink-0">
+                        <i className="ri-arrow-right-up-line text-sm" />
                       </div>
                     </div>
                   </div>
