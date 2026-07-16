@@ -124,6 +124,11 @@ export default function CheckoutClient({
   const productType = useMemo(() => product?.type?.toUpperCase() || "", [product?.type]);
   const isInviteType = productType.includes("INVITE");
 
+  const normalizedVariantId = useMemo(() => {
+    const trimmed = variantId?.trim();
+    return trimmed ? trimmed : null;
+  }, [variantId]);
+
   const [targetId, setTargetId] = useState(isInviteType ? defaultEmail : "");
   const [whatsapp, setWhatsapp] = useState(sanitizePhone(defaultPhone));
 
@@ -219,6 +224,8 @@ export default function CheckoutClient({
   const handleCheckout = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    if (isLoading) return;
+
     const validationErrors = validateFields();
     if (Object.keys(validationErrors).length > 0) {
       setFormMessage("Periksa kembali kolom yang masih bermasalah.");
@@ -235,7 +242,7 @@ export default function CheckoutClient({
 
     const formData = new FormData();
     formData.append("productId", product.id);
-    if (variantId) formData.append("variantId", variantId);
+    if (normalizedVariantId) formData.append("variantId", normalizedVariantId);
     formData.append("targetId", finalTargetId);
     formData.append("whatsapp", whatsapp.trim());
     formData.append("method", "qris");
@@ -271,11 +278,15 @@ export default function CheckoutClient({
           window.location.href = res.invoiceUrl;
           return;
         }
+
+        setIsLoading(false);
+        setLoadingStep(0);
+        return;
       }
 
       const nextErrors: FieldErrors = {
-        targetId: res.success ? undefined : res.fieldErrors?.targetId?.[0],
-        whatsapp: res.success ? undefined : res.fieldErrors?.whatsapp?.[0],
+        targetId: res.fieldErrors?.targetId?.[0],
+        whatsapp: res.fieldErrors?.whatsapp?.[0],
       };
 
       setErrors((prev) => ({ ...prev, ...nextErrors }));
@@ -284,7 +295,8 @@ export default function CheckoutClient({
       focusFirstInvalidField(nextErrors);
       setIsLoading(false);
       setLoadingStep(0);
-    } catch {
+    } catch (error) {
+      console.error("[CheckoutClient] Gagal memproses checkout:", error);
       stopLoadingSteps();
       setFormMessage("Koneksi bermasalah. Silakan coba kembali.");
       toast.error("Koneksi bermasalah. Silakan coba kembali.");
