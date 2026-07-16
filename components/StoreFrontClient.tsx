@@ -379,7 +379,7 @@ function ProductImage({
       style={getGradientStyle(product.name)}
       aria-label={product.name}
     >
-      <span className="text-3xl md:text-5xl font-black tracking-tighter drop-shadow-md opacity-90">
+      <span className="text-2xl md:text-5xl font-black tracking-tighter drop-shadow-md opacity-90">
         {getInitials(product.name)}
       </span>
     </div>
@@ -399,10 +399,10 @@ function ProductCard({
   const previewVariant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0] ?? null;
 
   return (
-    <article className="reveal-card group relative flex h-full flex-col overflow-hidden rounded-[26px] sm:rounded-[30px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.05)] hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(5,150,105,0.10)] hover:border-emerald-200 transition-all duration-300">
+    <article className="reveal-card group relative rounded-[22px] sm:rounded-[30px] border border-slate-200 bg-white overflow-hidden shadow-[0_10px_24px_rgba(15,23,42,0.05)] hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(5,150,105,0.08)] hover:border-emerald-200 transition-all duration-300">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600 opacity-90" />
 
-      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+      <div className="relative aspect-[1/1] sm:aspect-[4/3] overflow-hidden bg-slate-100">
         <ProductImage
           product={product}
           square
@@ -410,91 +410,91 @@ function ProductCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
 
-        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-800 shadow-sm">
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex flex-wrap gap-1.5 sm:top-4 sm:left-4 sm:right-4 sm:gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-md px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.12em] text-slate-800 shadow-sm">
             <i className="ri-price-tag-3-fill text-emerald-700" />
             {product.category || "Katalog"}
           </span>
 
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] shadow-sm ${
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.12em] shadow-sm ${
               inStock
                 ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
                 : "bg-rose-50 text-rose-700 border border-rose-100"
             }`}
           >
             <i className={inStock ? "ri-checkbox-circle-fill" : "ri-close-circle-fill"} />
-            {inStock ? "Ready Stock" : "Stok Habis"}
+            {inStock ? "Ready" : "Habis"}
           </span>
         </div>
 
-        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4">
-          <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-4 py-3 text-white">
-            <div className="text-[10px] uppercase tracking-[0.16em] font-black text-white/70 mb-1">
+        <div className="absolute bottom-2.5 left-2.5 right-2.5 sm:bottom-4 sm:left-4 sm:right-4">
+          <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-3 py-2.5 sm:px-4 sm:py-3 text-white">
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] font-black text-white/70 mb-1">
               Harga mulai
             </div>
-            <div className="text-xl sm:text-2xl font-black tracking-tight">
-              <span className="text-xs sm:text-sm mr-1 text-white/70">Rp</span>
+            <div className="text-base sm:text-2xl font-black tracking-tight">
+              <span className="text-[10px] sm:text-sm mr-1 text-white/70">Rp</span>
               {formatPrice(startingPrice)}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-4 sm:p-5 md:p-6">
-        <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="p-3.5 sm:p-5 md:p-6">
+        <div className="flex items-start justify-between gap-2 mb-3">
           <div className="min-w-0">
-            <h3 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight">
+            <h3 className="text-[15px] sm:text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight line-clamp-2">
               {product.name}
             </h3>
-            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700/80 mt-1">
+            <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700/80 mt-1">
               {product.type || previewVariant?.type || "Produk Digital"}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2 text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
+          <div className="rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 px-2.5 py-2 text-right shrink-0">
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
               Paket
             </div>
-            <div className="text-sm font-black text-slate-900">{variantCount || 1}</div>
+            <div className="text-xs sm:text-sm font-black text-slate-900">{variantCount || 1}</div>
           </div>
         </div>
 
-        <p className="text-sm leading-7 font-medium text-slate-500 line-clamp-3 min-h-[84px]">
+        <p className="hidden sm:block text-sm leading-7 font-medium text-slate-500 line-clamp-3 min-h-[84px]">
           {product.description ||
             "Produk digital resmi dengan pengiriman cepat, aman, dan otomatis selama 24 jam."}
         </p>
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-2.5 sm:p-3">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+        <div className="mt-4 sm:mt-5 grid grid-cols-3 gap-2">
+          <div className="rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 p-2 sm:p-3">
+            <div className="text-[8px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
               Varian
             </div>
-            <div className="text-[11px] sm:text-xs font-black text-slate-800">{variantCount || 1} pilihan</div>
+            <div className="text-[10px] sm:text-xs font-black text-slate-800">{variantCount || 1}</div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-2.5 sm:p-3">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+          <div className="rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 p-2 sm:p-3">
+            <div className="text-[8px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
               Garansi
             </div>
-            <div className="text-[11px] sm:text-xs font-black text-slate-800 truncate">
+            <div className="text-[10px] sm:text-xs font-black text-slate-800 truncate">
               {previewVariant?.warranty || "-"}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-2.5 sm:p-3">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+          <div className="rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 p-2 sm:p-3">
+            <div className="text-[8px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
               Stok
             </div>
-            <div className="text-[11px] sm:text-xs font-black text-slate-800">{product.stock}</div>
+            <div className="text-[10px] sm:text-xs font-black text-slate-800">{product.stock}</div>
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col sm:flex-row items-stretch gap-3">
+        <div className="mt-4 sm:mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <button
             type="button"
             onClick={() => onOpen(product)}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-800 active:scale-[0.98]"
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-slate-900 px-3 py-3 sm:px-4 sm:py-3.5 text-[11px] sm:text-sm font-black text-white transition-all duration-300 hover:bg-emerald-800 active:scale-[0.98]"
           >
             <i className="ri-eye-line" />
             Lihat Detail
@@ -502,7 +502,7 @@ function ProductCard({
 
           <Link
             href={getProductHref(product, previewVariant)}
-            className="inline-flex sm:min-w-[120px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-black text-emerald-800 transition-all duration-300 hover:bg-emerald-100"
+            className="inline-flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 sm:px-4 sm:py-3.5 text-[11px] sm:text-sm font-black text-emerald-800 transition-all duration-300 hover:bg-emerald-100"
           >
             <i className="ri-shopping-bag-3-line" />
             Beli
@@ -1126,10 +1126,7 @@ export default function StorefrontClient({
           </nav>
         </header>
 
-        <section
-          className="relative overflow-hidden bg-white px-4 pt-28 pb-14 md:pt-40 md:pb-20"
-          style={{ paddingTop: "clamp(104px, 16vw, 172px)" }}
-        >
+        <section className="relative overflow-hidden bg-white px-4 pt-[150px] md:pt-[180px] pb-14 md:pb-20">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.025)_1px,transparent_1px)] bg-[size:34px_34px] [mask-image:radial-gradient(ellipse_72%_82%_at_50%_48%,#000_60%,transparent_100%)] pointer-events-none" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[420px] md:w-[820px] h-[280px] md:h-[420px] bg-gradient-to-b from-emerald-100/80 via-emerald-50/40 to-transparent rounded-full blur-[90px] pointer-events-none" />
 
@@ -1143,7 +1140,7 @@ export default function StorefrontClient({
                   </span>
                 </div>
 
-                <h1 className="animate-fade-up-delay text-[2.8rem] sm:text-5xl md:text-[5.4rem] font-black tracking-tight leading-[1.02] text-slate-900 mb-5">
+                <h1 className="animate-fade-up-delay text-[2.5rem] sm:text-5xl md:text-[5.2rem] font-black tracking-tight leading-[1.02] text-slate-900 mb-5">
                   Top up instan,
                   <br />
                   harga hemat,
@@ -1239,21 +1236,6 @@ export default function StorefrontClient({
         </section>
 
         <TrustBar />
-
-        <section className="py-8 bg-slate-950 overflow-hidden border-y border-slate-800">
-          <div className="flex w-max animate-marquee gap-8 whitespace-nowrap select-none">
-            {MARQUEE_ITEMS.map((item, i) => (
-              <span
-                key={`${item}-section-${i}`}
-                className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100"
-              >
-                {item}
-                <span className="mx-2 text-emerald-500">•</span>
-              </span>
-            ))}
-          </div>
-        </section>
-
         <PromoBanner />
 
         <section className="py-14 md:py-20">
@@ -1271,6 +1253,7 @@ export default function StorefrontClient({
                   <br className="hidden md:block" />
                   Favoritmu Sekarang
                 </h2>
+                <div className="mt-3 h-1.5 w-28 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-300" />
               </div>
 
               <div className="text-sm font-bold text-slate-400">
@@ -1302,7 +1285,7 @@ export default function StorefrontClient({
             </div>
 
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 md:gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} onOpen={openProductDetail} />
                 ))}
