@@ -49,12 +49,14 @@ function generateInvoiceId(): string {
 export async function processCheckout(formData: FormData): Promise<CheckoutResult> {
   try {
     const productId = String(formData.get("productId") || "").trim();
-    const variantId = String(formData.get("variantId") || "").trim();
+    const variantIdRaw = String(formData.get("variantId") || "").trim();
+    const variantId = variantIdRaw || null;
     const targetId = String(formData.get("targetId") || "").trim();
     const whatsappRaw = String(formData.get("whatsapp") || "").trim();
     const method = String(formData.get("method") || "qris").trim().toLowerCase();
 
-    if (!productId || !variantId || !targetId || !whatsappRaw) {
+    // variantId sekarang OPSIONAL — produk tanpa varian asli tidak mengirim field ini.
+    if (!productId || !targetId || !whatsappRaw) {
       return {
         success: false,
         message: "Data checkout tidak lengkap. Harap isi semua field wajib.",
@@ -79,12 +81,15 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       };
     }
 
-    const [settings, variant] = await Promise.all([
+    const [settings, variant, product] = await Promise.all([
       prisma.appSetting.findFirst(),
-      prisma.variant.findUnique({
-        where: { id: variantId },
-        include: { product: true },
-      }),
+      variantId
+        ? prisma.variant.findUnique({
+            where: { id: variantId },
+            include: { product: true },
+          })
+        : Promise.resolve(null),
+      prisma.product.findUnique({ where: { id: productId } }),
     ]);
 
     if (!settings?.pakasirProjectSlug || !settings?.pakasirApiKey) {
@@ -95,39 +100,60 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       };
     }
 
-    if (!variant || !variant.product) {
+    if (!product) {
       return {
         success: false,
-        message: "Varian produk tidak ditemukan atau tidak tersedia.",
+        message: "Produk tidak ditemukan atau sudah tidak tersedia.",
       };
     }
 
-    if (variant.product.id !== productId) {
-      return {
-        success: false,
-        message: "Varian tidak cocok dengan produk yang dipilih.",
-      };
+    // Kasus 1: ada variantId → wajib valid & cocok dengan productId.
+    if (variantId) {
+      if (!variant || !variant.product) {
+        return {
+          success: false,
+          message: "Varian produk tidak ditemukan atau tidak tersedia.",
+        };
+      }
+
+      if (variant.product.id !== productId) {
+        return {
+          success: false,
+          message: "Varian tidak cocok dengan produk yang dipilih.",
+        };
+      }
+
+      if ((variant.stock ?? 0) <= 0) {
+        return {
+          success: false,
+          message: "Stok varian sedang habis.",
+        };
+      }
+    } else {
+      // Kasus 2: produk tanpa varian asli → pakai stok & harga dari produk langsung.
+      if ((product.stock ?? 0) <= 0) {
+        return {
+          success: false,
+          message: "Stok produk sedang habis.",
+        };
+      }
     }
 
-    if ((variant.stock ?? 0) <= 0) {
-      return {
-        success: false,
-        message: "Stok varian sedang habis.",
-      };
-    }
-
-    const finalPrice = Number(variant.price);
+    const finalPrice = Number(variant ? variant.price : product.sellPrice);
     if (!Number.isFinite(finalPrice) || finalPrice <= 0) {
       return {
         success: false,
-        message: "Harga varian tidak valid.",
+        message: "Harga produk/varian tidak valid.",
       };
     }
+
+    // productCode dipakai sebagai key unik pengecekan pending & pengiriman produk.
+    const productCode = variant ? variant.id : product.id;
 
     const existingPending = await prisma.transaction.findFirst({
       where: {
         customerPhone: whatsapp,
-        productCode: variant.id,
+        productCode,
         paymentStatus: "PENDING",
       },
       orderBy: {
@@ -149,24 +175,30 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
 
     const invoiceId = generateInvoiceId();
 
+    const productName = product.name;
+    const variantName = variant?.name ?? product.name;
+    const productType = variant?.type ?? product.type ?? null;
+    const productDuration = variant?.duration ?? null;
+    const productWarranty = variant?.warranty ?? null;
+
     await prisma.transaction.create({
       data: {
         invoiceId,
-        productCode: variant.id,
+        productCode,
         customerPhone: whatsapp,
         amount: finalPrice,
         paymentStatus: "PENDING",
         premifyStatus: "PENDING",
         productDetails: JSON.stringify({
-          productId: variant.product.id,
-          productName: variant.product.name,
-          variantId: variant.id,
-          variantName: variant.name,
+          productId: product.id,
+          productName,
+          variantId: variant?.id ?? null,
+          variantName,
           targetId,
           customerPhone: whatsapp,
-          type: variant.type ?? null,
-          duration: variant.duration ?? null,
-          warranty: variant.warranty ?? null,
+          type: productType,
+          duration: productDuration,
+          warranty: productWarranty,
         }),
       },
     });
@@ -211,7 +243,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     try {
       const waMessage = WATemplates.invoiceCreated({
         invoiceId,
-        productName: `${variant.product.name} - ${variant.name}`,
+        productName: `${productName} - ${variantName}`,
         targetId,
         price: finalPrice,
         paymentUrl: invoiceUrl,
