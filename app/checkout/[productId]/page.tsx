@@ -39,14 +39,14 @@ export default async function CheckoutProductPage({
 
   const productVariants = product.variants ?? [];
 
-  const selectedVariant =
-    (variantId
-      ? productVariants.find((item) => item.id === variantId)
-      : productVariants.find((item) => item.stock > 0) || productVariants[0]) ?? null;
+  const requestedVariant = variantId
+    ? productVariants.find((item) => item.id === variantId) ?? null
+    : null;
 
-  if (variantId && !selectedVariant) {
-    notFound();
-  }
+  const fallbackVariant =
+    productVariants.find((item) => item.stock > 0) || productVariants[0] || null;
+
+  const selectedVariant = requestedVariant ?? fallbackVariant;
 
   const finalPrice = selectedVariant?.price ?? product.sellPrice;
   const finalVariantId = selectedVariant?.id ?? null;
