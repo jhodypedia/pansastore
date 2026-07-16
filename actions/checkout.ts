@@ -4,13 +4,21 @@ import crypto from "node:crypto";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
 import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
-import { z } from "zod";
+
+type PaymentData = {
+  order_id: string;
+  amount: number;
+  total_payment: number;
+  fee: number;
+  payment_number: string;
+  expired_at: string;
+};
 
 type CheckoutResult =
   | {
       success: true;
       message: string;
-      payment: any;
+      payment: PaymentData | null;
       invoiceId: string;
       invoiceUrl: string;
       amount: number;
@@ -20,14 +28,6 @@ type CheckoutResult =
       message: string;
       fieldErrors?: Record<string, string[] | undefined>;
     };
-
-const checkoutSchema = z.object({
-  productId: z.string().min(1, "Produk wajib dipilih."),
-  variantId: z.string().min(1, "Varian wajib dipilih."),
-  targetId: z.string().min(1, "Target / user ID wajib diisi."),
-  whatsapp: z.string().min(8, "Nomor WhatsApp tidak valid."),
-  method: z.enum(["qris"]).default("qris"),
-});
 
 function normalizePhone(phone: string): string | null {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -48,32 +48,34 @@ function generateInvoiceId(): string {
 
 export async function processCheckout(formData: FormData): Promise<CheckoutResult> {
   try {
-    const raw = {
-      productId: String(formData.get("productId") || "").trim(),
-      variantId: String(formData.get("variantId") || "").trim(),
-      targetId: String(formData.get("targetId") || "").trim(),
-      whatsapp: String(formData.get("whatsapp") || "").trim(),
-      method: String(formData.get("method") || "qris").trim().toLowerCase(),
-    };
+    const productId = String(formData.get("productId") || "").trim();
+    const variantId = String(formData.get("variantId") || "").trim();
+    const targetId = String(formData.get("targetId") || "").trim();
+    const whatsappRaw = String(formData.get("whatsapp") || "").trim();
+    const method = String(formData.get("method") || "qris").trim().toLowerCase();
 
-    const parsed = checkoutSchema.safeParse(raw);
-
-    if (!parsed.success) {
+    if (!productId || !variantId || !targetId || !whatsappRaw) {
       return {
         success: false,
-        message: "Data checkout tidak valid.",
-        fieldErrors: parsed.error.flatten().fieldErrors,
+        message: "Data checkout tidak lengkap. Harap isi semua field wajib.",
       };
     }
-
-    const { productId, variantId, targetId, whatsapp: whatsappRaw, method } = parsed.data;
 
     const whatsapp = normalizePhone(whatsappRaw);
     if (!whatsapp) {
       return {
         success: false,
         message: "Nomor WhatsApp tidak valid.",
-        fieldErrors: { whatsapp: ["Format nomor WhatsApp tidak valid."] },
+        fieldErrors: {
+          whatsapp: ["Nomor WhatsApp tidak valid."],
+        },
+      };
+    }
+
+    if (method !== "qris") {
+      return {
+        success: false,
+        message: `Metode pembayaran ${method} belum didukung sistem ini.`,
       };
     }
 
@@ -96,7 +98,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     if (!variant || !variant.product) {
       return {
         success: false,
-        message: "Varian produk tidak ditemukan.",
+        message: "Varian produk tidak ditemukan atau tidak tersedia.",
       };
     }
 
@@ -122,24 +124,26 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       };
     }
 
-    const recentPending = await prisma.transaction.findFirst({
+    const existingPending = await prisma.transaction.findFirst({
       where: {
         customerPhone: whatsapp,
         productCode: variant.id,
         paymentStatus: "PENDING",
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    if (recentPending) {
+    if (existingPending) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
       return {
         success: true,
-        message: "Transaksi pending sebelumnya masih aktif.",
+        message: "Invoice pending sebelumnya masih aktif.",
         payment: null,
-        invoiceId: recentPending.invoiceId,
-        invoiceUrl: `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(recentPending.invoiceId)}`,
-        amount: Number(recentPending.amount),
+        invoiceId: existingPending.invoiceId,
+        invoiceUrl: `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(existingPending.invoiceId)}`,
+        amount: Number(existingPending.amount),
       };
     }
 
@@ -190,16 +194,19 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       };
     }
 
-    const payment = paymentResult.data.payment;
+    const paymentRaw = paymentResult.data.payment;
+
+    const payment: PaymentData = {
+      order_id: String(paymentRaw.order_id),
+      amount: Number(paymentRaw.amount),
+      total_payment: Number(paymentRaw.total_payment),
+      fee: Number(paymentRaw.fee),
+      payment_number: String(paymentRaw.payment_number),
+      expired_at: String(paymentRaw.expired_at),
+    };
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
     const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(invoiceId)}`;
-
-    await prisma.transaction.update({
-      where: { invoiceId },
-      data: {
-        paymentGatewayPayload: JSON.stringify(payment),
-      },
-    });
 
     try {
       const waMessage = WATemplates.invoiceCreated({
@@ -211,10 +218,10 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       });
 
       void sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
-        console.error("[Checkout WA Error]", err);
+        console.error("[Checkout WA Error] Gagal kirim notifikasi awal:", err);
       });
     } catch (waError) {
-      console.error("[Checkout WA Template Error]", waError);
+      console.error("[Checkout WA Template Error]:", waError);
     }
 
     return {
