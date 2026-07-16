@@ -1,8 +1,10 @@
 "use server";
 
+import crypto from "node:crypto";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
 import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
+import { z } from "zod";
 
 type CheckoutResult =
   | {
@@ -16,7 +18,16 @@ type CheckoutResult =
   | {
       success: false;
       message: string;
+      fieldErrors?: Record<string, string[] | undefined>;
     };
+
+const checkoutSchema = z.object({
+  productId: z.string().min(1, "Produk wajib dipilih."),
+  variantId: z.string().min(1, "Varian wajib dipilih."),
+  targetId: z.string().min(1, "Target / user ID wajib diisi."),
+  whatsapp: z.string().min(8, "Nomor WhatsApp tidak valid."),
+  method: z.enum(["qris"]).default("qris"),
+});
 
 function normalizePhone(phone: string): string | null {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -31,43 +42,41 @@ function normalizePhone(phone: string): string | null {
 
 function generateInvoiceId(): string {
   const datePrefix = new Date().toISOString().slice(2, 10).replace(/-/g, "");
-  const randomHex = Math.random().toString(16).substring(2, 8).toUpperCase();
-  return `INV-PS-${datePrefix}-${randomHex}`;
+  const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
+  return `INV-PS-${datePrefix}-${rand}`;
 }
 
 export async function processCheckout(formData: FormData): Promise<CheckoutResult> {
   try {
-    // 1. Ambil data dari form
-    const productId = String(formData.get("productId") || "").trim();
-    const variantId = String(formData.get("variantId") || "").trim();
-    const targetId = String(formData.get("targetId") || "").trim();
-    const whatsappRaw = String(formData.get("whatsapp") || "").trim();
-    const method = String(formData.get("method") || "qris").trim().toLowerCase();
+    const raw = {
+      productId: String(formData.get("productId") || "").trim(),
+      variantId: String(formData.get("variantId") || "").trim(),
+      targetId: String(formData.get("targetId") || "").trim(),
+      whatsapp: String(formData.get("whatsapp") || "").trim(),
+      method: String(formData.get("method") || "qris").trim().toLowerCase(),
+    };
 
-    // 2. Validasi input dasar
-    if (!productId || !variantId || !targetId || !whatsappRaw) {
+    const parsed = checkoutSchema.safeParse(raw);
+
+    if (!parsed.success) {
       return {
         success: false,
-        message: "Data checkout tidak lengkap. Harap isi semua field wajib.",
+        message: "Data checkout tidak valid.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
       };
     }
+
+    const { productId, variantId, targetId, whatsapp: whatsappRaw, method } = parsed.data;
 
     const whatsapp = normalizePhone(whatsappRaw);
     if (!whatsapp) {
       return {
         success: false,
         message: "Nomor WhatsApp tidak valid.",
+        fieldErrors: { whatsapp: ["Format nomor WhatsApp tidak valid."] },
       };
     }
 
-    if (method !== "qris") {
-      return {
-        success: false,
-        message: `Metode pembayaran ${method} belum didukung sistem ini.`,
-      };
-    }
-
-    // 3. Ambil setting dan variant + product parent
     const [settings, variant] = await Promise.all([
       prisma.appSetting.findFirst(),
       prisma.variant.findUnique({
@@ -77,7 +86,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     ]);
 
     if (!settings?.pakasirProjectSlug || !settings?.pakasirApiKey) {
-      console.error("[Checkout Error] Kredensial Pakasir belum diatur di database.");
+      console.error("[Checkout Error] Kredensial Pakasir belum diatur.");
       return {
         success: false,
         message: "Sistem pembayaran sedang dalam gangguan. Hubungi admin.",
@@ -87,18 +96,18 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     if (!variant || !variant.product) {
       return {
         success: false,
-        message: "Variant produk tidak ditemukan atau tidak tersedia.",
+        message: "Varian produk tidak ditemukan.",
       };
     }
 
     if (variant.product.id !== productId) {
       return {
         success: false,
-        message: "Variant tidak cocok dengan produk yang dipilih.",
+        message: "Varian tidak cocok dengan produk yang dipilih.",
       };
     }
 
-    if (typeof variant.stock === "number" && variant.stock <= 0) {
+    if ((variant.stock ?? 0) <= 0) {
       return {
         success: false,
         message: "Stok varian sedang habis.",
@@ -109,13 +118,33 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     if (!Number.isFinite(finalPrice) || finalPrice <= 0) {
       return {
         success: false,
-        message: "Harga variant tidak valid.",
+        message: "Harga varian tidak valid.",
+      };
+    }
+
+    const recentPending = await prisma.transaction.findFirst({
+      where: {
+        customerPhone: whatsapp,
+        productCode: variant.id,
+        paymentStatus: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (recentPending) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
+      return {
+        success: true,
+        message: "Transaksi pending sebelumnya masih aktif.",
+        payment: null,
+        invoiceId: recentPending.invoiceId,
+        invoiceUrl: `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(recentPending.invoiceId)}`,
+        amount: Number(recentPending.amount),
       };
     }
 
     const invoiceId = generateInvoiceId();
 
-    // 4. Simpan transaksi pending
     await prisma.transaction.create({
       data: {
         invoiceId,
@@ -138,7 +167,6 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       },
     });
 
-    // 5. Request QRIS ke Pakasir
     const paymentResult = await pakasirSDK.createQris({
       project: settings.pakasirProjectSlug,
       api_key: settings.pakasirApiKey,
@@ -147,28 +175,32 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     });
 
     if (!paymentResult?.ok || !paymentResult?.data?.payment) {
-      console.error("[Checkout Error] Pakasir membalas:", paymentResult?.data);
+      console.error("[Checkout Error] Pakasir response:", paymentResult?.data);
 
       await prisma.transaction.update({
         where: { invoiceId },
-        data: { paymentStatus: "FAILED" },
+        data: {
+          paymentStatus: "FAILED",
+        },
       });
 
       return {
         success: false,
-        message:
-          paymentResult?.data?.message ||
-          "Gagal membuat invoice di payment gateway.",
+        message: paymentResult?.data?.message || "Gagal membuat invoice pembayaran.",
       };
     }
 
     const payment = paymentResult.data.payment;
-
-    // 6. URL invoice lokal
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
     const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(invoiceId)}`;
 
-    // 7. Kirim notifikasi WA invoice
+    await prisma.transaction.update({
+      where: { invoiceId },
+      data: {
+        paymentGatewayPayload: JSON.stringify(payment),
+      },
+    });
+
     try {
       const waMessage = WATemplates.invoiceCreated({
         invoiceId,
@@ -178,11 +210,11 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         paymentUrl: invoiceUrl,
       });
 
-      sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
-        console.error("[Checkout WA Error] Gagal kirim notifikasi awal:", err);
+      void sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
+        console.error("[Checkout WA Error]", err);
       });
     } catch (waError) {
-      console.error("[Checkout WA Template Error]:", waError);
+      console.error("[Checkout WA Template Error]", waError);
     }
 
     return {
