@@ -7,7 +7,7 @@ type CheckoutPageProps = {
     productId: string;
   }>;
   searchParams: Promise<{
-    variant?: string;
+    variantId?: string;
   }>;
 };
 
@@ -16,7 +16,7 @@ export default async function CheckoutProductPage({
   searchParams,
 }: CheckoutPageProps) {
   const { productId } = await params;
-  const { variant } = await searchParams;
+  const { variantId } = await searchParams;
 
   if (!productId) {
     notFound();
@@ -40,11 +40,11 @@ export default async function CheckoutProductPage({
   const productVariants = product.variants ?? [];
 
   const selectedVariant =
-    (variant
-      ? productVariants.find((item) => item.id === variant)
+    (variantId
+      ? productVariants.find((item) => item.id === variantId)
       : productVariants.find((item) => item.stock > 0) || productVariants[0]) ?? null;
 
-  if (variant && !selectedVariant) {
+  if (variantId && !selectedVariant) {
     notFound();
   }
 
