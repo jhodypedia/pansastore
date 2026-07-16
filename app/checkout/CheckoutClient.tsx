@@ -21,7 +21,12 @@ type Product = {
 };
 
 type PaymentData = {
-  [key: string]: unknown;
+  order_id: string;
+  amount: number;
+  total_payment: number;
+  fee: number;
+  payment_number: string;
+  expired_at: string;
 };
 
 type CheckoutSuccessResult = {
@@ -57,7 +62,6 @@ type FieldErrors = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formatPrice = (value: number) => value.toLocaleString("id-ID");
-
 const sanitizePhone = (value: string) => value.replace(/[^0-9]/g, "");
 
 export default function CheckoutClient({
@@ -191,11 +195,20 @@ export default function CheckoutClient({
       stopLoadingSteps();
 
       if (res.success) {
+        const normalizedPayment: PaymentData = {
+          order_id: String(res.payment.order_id),
+          amount: Number(res.payment.amount),
+          total_payment: Number(res.payment.total_payment),
+          fee: Number(res.payment.fee),
+          payment_number: String(res.payment.payment_number),
+          expired_at: String(res.payment.expired_at),
+        };
+
         setLoadingStep(4);
         toast.success("Invoice berhasil dibuat!", { icon: "🔒" });
 
         setTimeout(() => {
-          setInvoiceData(res.payment);
+          setInvoiceData(normalizedPayment);
           setIsLoading(false);
         }, 600);
 
