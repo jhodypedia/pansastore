@@ -92,8 +92,13 @@ const prettifyBaseName = (name: string) =>
 
 const getProductHref = (product: Product, variant?: Variant | null) => {
   const productId = variant?.productId || product.id;
+  const isSyntheticVariant = !variant || variant.id === product.id;
+
   const params = new URLSearchParams();
-  if (variant?.id) params.set("variantId", variant.id);
+  if (variant?.id && !isSyntheticVariant) {
+    params.set("variantId", variant.id);
+  }
+
   const query = params.toString();
   return `/checkout/${productId}${query ? `?${query}` : ""}`;
 };
@@ -221,10 +226,11 @@ function TrustBar() {
     <section className="py-12 md:py-16 bg-white border-y border-slate-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-          {TRUST_STATS.map((stat) => (
+          {TRUST_STATS.map((stat, i) => (
             <div
               key={stat.label}
-              className="rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5 md:p-6 text-center shadow-[0_10px_30px_rgba(15,23,42,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(5,150,105,0.08)] transition-all duration-300"
+              style={{ animationDelay: `${i * 90}ms` }}
+              className="reveal-card rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5 md:p-6 text-center shadow-[0_10px_30px_rgba(15,23,42,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(5,150,105,0.08)] transition-all duration-300"
             >
               <div className="w-12 h-12 md:w-14 md:h-14 mx-auto rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3">
                 <i className={`${stat.icon} text-emerald-700 text-xl md:text-2xl`} />
@@ -247,8 +253,8 @@ function PromoBanner() {
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
       <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 p-8 md:p-12 shadow-[0_30px_80px_-20px_rgba(6,78,59,0.45)]">
-        <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-12 h-80 w-80 rounded-full bg-emerald-300/10 blur-3xl pointer-events-none" />
+        <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl pointer-events-none animate-blob-float" />
+        <div className="absolute -bottom-24 -left-12 h-80 w-80 rounded-full bg-emerald-300/10 blur-3xl pointer-events-none animate-blob-float-delay" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 mb-5">
@@ -276,7 +282,7 @@ function PromoBanner() {
           <div className="flex flex-col items-start md:items-end gap-3">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-7 py-3.5 text-sm font-black text-emerald-800 shadow-lg transition-all duration-300 hover:bg-yellow-300 hover:text-emerald-900 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-7 py-3.5 text-sm font-black text-emerald-800 shadow-lg transition-all duration-300 hover:bg-yellow-300 hover:text-emerald-900 hover:scale-[1.03] active:scale-95"
             >
               <i className="ri-user-add-fill" />
               Daftar Gratis Sekarang
@@ -311,10 +317,11 @@ function TestimonialsSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-          {TESTIMONIALS.map((t) => (
+          {TESTIMONIALS.map((t, i) => (
             <article
               key={t.name}
-              className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-7 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(5,150,105,0.08)]"
+              style={{ animationDelay: `${i * 110}ms` }}
+              className="reveal-card rounded-[28px] border border-slate-200 bg-white p-6 md:p-7 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(5,150,105,0.08)]"
             >
               <div className="flex items-center gap-1 text-yellow-400 mb-4">
                 {Array.from({ length: t.rating }).map((_, j) => (
@@ -529,6 +536,7 @@ function ProductModal({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [showCheckoutBar, setShowCheckoutBar] = useState(false);
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement | null;
@@ -564,14 +572,24 @@ function ProductModal({
     };
   }, [onClose]);
 
+  useEffect(() => {
+    if (selectedVariant) {
+      const timer = setTimeout(() => setShowCheckoutBar(true), 60);
+      return () => clearTimeout(timer);
+    }
+    setShowCheckoutBar(false);
+  }, [selectedVariant?.id]);
+
   const selectedPrice = selectedVariant?.price ?? product.sellPrice;
   const checkoutHref = getProductHref(product, selectedVariant);
   const variantList = product.variants && product.variants.length > 0 ? product.variants : [];
+  const hasVariants = variantList.length > 0;
+  const canCheckout = !hasVariants || showCheckoutBar;
 
   return (
     <div className="fixed inset-0 z-[9999]">
       <div
-        className="absolute inset-0 bg-slate-950/70 backdrop-blur-md"
+        className="modal-backdrop absolute inset-0 bg-slate-950/70 backdrop-blur-md"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -583,7 +601,7 @@ function ProductModal({
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className="relative flex h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[30px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)] outline-none sm:h-auto sm:max-h-[92vh] sm:rounded-[32px]"
+          className="modal-panel relative flex h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[30px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)] outline-none sm:h-auto sm:max-h-[92vh] sm:rounded-[32px]"
         >
           <div className="absolute left-1/2 top-3 z-20 h-1.5 w-12 -translate-x-1/2 rounded-full bg-slate-200 sm:hidden" />
 
@@ -591,67 +609,44 @@ function ProductModal({
             type="button"
             onClick={onClose}
             aria-label="Tutup detail produk"
-            className="absolute right-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-slate-900/75 text-white backdrop-blur-md transition-colors hover:bg-slate-900"
+            className="absolute right-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-slate-900/75 text-white backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-slate-900"
           >
             <i className="ri-close-line text-lg" />
           </button>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1.02fr_0.98fr]">
-            <div className="relative hidden min-h-0 overflow-hidden lg:block">
-              <ProductImage product={product} className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/15 to-transparent" />
+          <div className="modal-scroll min-h-0 flex-1 overflow-y-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr]">
+              <div className="relative min-h-[260px] overflow-hidden lg:min-h-[560px]">
+                <ProductImage product={product} className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent lg:bg-gradient-to-r lg:from-slate-950/10 lg:via-transparent lg:to-transparent" />
+                <div className="shine-sweep absolute inset-0" />
 
-              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]">
-                  <i className="ri-shield-check-fill text-emerald-300" />
-                  Checkout Aman · PansaStore
-                </span>
-                <h3 id={titleId} className="text-3xl font-black leading-tight tracking-tight">
-                  {product.name}
-                </h3>
-                <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-white/80">
-                  {product.description ||
-                    "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex min-h-0 flex-col">
-              <div className="border-b border-slate-100 bg-white px-4 pb-4 pt-6 sm:px-5 lg:hidden">
-                <div className="mb-4 overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100">
-                  <div className="relative aspect-[16/10] overflow-hidden">
-                    <ProductImage product={product} className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
-                  </div>
+                <div className="absolute bottom-0 left-0 right-0 p-5 text-white sm:p-6">
+                  <span className="chip-pop inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]">
+                    <i className="ri-shield-check-fill text-emerald-300" />
+                    Checkout Aman · PansaStore
+                  </span>
+                  <h3 id={titleId} className="mt-3 text-2xl font-black leading-tight tracking-tight sm:text-3xl">
+                    {product.name}
+                  </h3>
+                  <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-white/80">
+                    {product.description ||
+                      "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
+                  </p>
                 </div>
-
-                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-800">
-                  <i className="ri-shield-check-fill" />
-                  Checkout Aman
-                </span>
-
-                <h3 id={titleId} className="mt-3 text-2xl font-black leading-tight tracking-tight text-slate-900 lg:hidden">
-                  {product.name}
-                </h3>
-
-                <p className="mt-2 text-sm font-medium leading-7 text-slate-500">
-                  {product.description ||
-                    "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
-                </p>
               </div>
 
-              <div
-                className="modal-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6"
-              >
+              <div className="flex flex-col px-4 py-5 sm:px-5 sm:py-6 md:px-6">
                 <div className="mb-5 flex flex-wrap gap-2">
                   {[
                     { icon: "ri-flashlight-line", label: "Proses Instan" },
                     { icon: "ri-shield-check-line", label: "Bergaransi" },
                     { icon: "ri-customer-service-2-line", label: "Support 24/7" },
-                  ].map((chip) => (
+                  ].map((chip, i) => (
                     <div
                       key={chip.label}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5"
+                      style={{ animationDelay: `${i * 80}ms` }}
+                      className="chip-pop inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5"
                     >
                       <i className={`${chip.icon} text-xs text-emerald-700`} />
                       <span className="text-[11px] font-bold text-emerald-900">{chip.label}</span>
@@ -687,14 +682,16 @@ function ProductModal({
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                       Pilih Paket
                     </p>
-                    <p className="text-[11px] font-bold text-slate-400">
-                      {product.variants?.length || 1} pilihan tersedia
-                    </p>
+                    {hasVariants && (
+                      <p className="text-[11px] font-bold text-slate-400">
+                        {variantList.length} pilihan tersedia
+                      </p>
+                    )}
                   </div>
 
-                  {variantList.length > 0 ? (
+                  {hasVariants ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {variantList.map((variant) => {
+                      {variantList.map((variant, index) => {
                         const isSelected = selectedVariant?.id === variant.id;
                         const outOfStock = variant.stock <= 0;
 
@@ -704,10 +701,11 @@ function ProductModal({
                             type="button"
                             disabled={outOfStock}
                             onClick={() => onSelectVariant(variant)}
-                            className={`w-full rounded-[24px] border p-4 text-left transition-all ${
+                            style={{ animationDelay: `${index * 60}ms` }}
+                            className={`variant-pop w-full rounded-[24px] border p-4 text-left transition-all duration-300 ${
                               isSelected
-                                ? "border-emerald-600 bg-emerald-50 shadow-[0_0_0_4px_rgba(5,150,105,0.08)]"
-                                : "border-slate-200 bg-white hover:border-emerald-300"
+                                ? "scale-[1.02] border-emerald-600 bg-emerald-50 shadow-[0_0_0_4px_rgba(5,150,105,0.10)]"
+                                : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
                             } ${outOfStock ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -721,9 +719,9 @@ function ProductModal({
                               </div>
 
                               {isSelected ? (
-                                <i className="ri-checkbox-circle-fill shrink-0 text-xl text-emerald-600" />
+                                <i className="ri-checkbox-circle-fill checkmark-pop shrink-0 text-xl text-emerald-600" />
                               ) : (
-                                <i className="ri-checkbox-blank-circle-line shrink-0 text-xl text-slate-300" />
+                                <i className="ri-checkbox-blank-circle-line shrink-0 text-xl text-slate-300 transition-colors" />
                               )}
                             </div>
 
@@ -767,51 +765,76 @@ function ProductModal({
                       </div>
                     </div>
                   )}
+
+                  {hasVariants && !selectedVariant && (
+                    <p className="mt-4 flex items-center gap-2 text-xs font-bold text-amber-600">
+                      <i className="ri-information-line" />
+                      Pilih salah satu paket di atas untuk melanjutkan checkout.
+                    </p>
+                  )}
                 </div>
+
+                <div className="h-4 shrink-0 lg:hidden" />
               </div>
+            </div>
+          </div>
 
-              <div className="safe-bottom shrink-0 border-t border-slate-100 bg-white p-4 sm:p-5">
-                <div className="mb-4 rounded-[24px] bg-slate-900 px-5 py-4 text-white">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
-                        Total Pembayaran
-                      </div>
-                      <div className="text-3xl font-black tracking-tight">
-                        <span className="mr-1 text-sm text-white/60">Rp</span>
-                        {formatPrice(selectedPrice)}
-                      </div>
+          <div className="safe-bottom shrink-0 border-t border-slate-100 bg-white p-4 sm:p-5">
+            <div
+              className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                canCheckout ? "mb-4 max-h-40 opacity-100" : "mb-0 max-h-0 opacity-0"
+              }`}
+            >
+              <div className="rounded-[24px] bg-slate-900 px-5 py-4 text-white">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+                      Total Pembayaran
                     </div>
+                    <div className="text-3xl font-black tracking-tight">
+                      <span className="mr-1 text-sm text-white/60">Rp</span>
+                      {formatPrice(selectedPrice)}
+                    </div>
+                  </div>
 
-                    <div className="text-right">
-                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
-                        Status
-                      </div>
-                      <div className="text-sm font-black text-emerald-300">
-                        {selectedVariant?.stock === 0 ? "Tidak tersedia" : "Siap diproses"}
-                      </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+                      Status
+                    </div>
+                    <div className="text-sm font-black text-emerald-300">
+                      {selectedVariant?.stock === 0 ? "Tidak tersedia" : "Siap diproses"}
                     </div>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full rounded-2xl bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200"
-                  >
-                    Tutup
-                  </button>
-
-                  <Link
-                    href={checkoutHref}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
-                  >
-                    <i className="ri-lightning-fill" />
-                    Lanjut ke Checkout
-                  </Link>
-                </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-2xl bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200"
+              >
+                Tutup
+              </button>
+
+              {canCheckout ? (
+                <Link
+                  href={checkoutHref}
+                  className="checkout-btn-pop inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-600 hover:shadow-lg active:scale-[0.98]"
+                >
+                  <i className="ri-lightning-fill" />
+                  Lanjut ke Checkout
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 text-sm font-black text-slate-400"
+                >
+                  Pilih paket dahulu
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -920,24 +943,18 @@ export default function StorefrontClient({
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-
-        .animate-marquee {
-          animation: marquee 28s linear infinite;
-        }
+        .animate-marquee { animation: marquee 28s linear infinite; }
 
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
-
         .animate-fade-up { animation: fadeUp 0.7s ease-out forwards; }
         .animate-fade-up-delay { animation: fadeUp 0.7s 0.12s ease-out both; }
         .animate-fade-up-delay2 { animation: fadeUp 0.7s 0.24s ease-out both; }
         .animate-fade-up-delay3 { animation: fadeUp 0.7s 0.36s ease-out both; }
 
-        .reveal-card {
-          transition: opacity 0.6s ease, transform 0.6s ease;
-        }
+        .reveal-card { transition: opacity 0.6s ease, transform 0.6s ease; }
 
         .glass-edge {
           box-shadow:
@@ -945,11 +962,62 @@ export default function StorefrontClient({
             0 10px 30px rgba(15,23,42,0.06);
         }
 
+        @keyframes blobFloat {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-14px, 18px) scale(1.06); }
+        }
+        .animate-blob-float { animation: blobFloat 9s ease-in-out infinite; }
+        .animate-blob-float-delay { animation: blobFloat 11s ease-in-out infinite 1.2s; }
+
+        @keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalPanelIn {
+          from { opacity: 0; transform: translateY(24px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-backdrop { animation: modalBackdropIn 0.25s ease-out both; }
+        .modal-panel { animation: modalPanelIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+
+        @keyframes chipPop {
+          from { opacity: 0; transform: translateY(8px) scale(0.9); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .chip-pop { animation: chipPop 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+
+        @keyframes variantPop {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .variant-pop { animation: variantPop 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+
+        @keyframes checkmarkPop {
+          0% { transform: scale(0.6); }
+          60% { transform: scale(1.25); }
+          100% { transform: scale(1); }
+        }
+        .checkmark-pop { animation: checkmarkPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+        @keyframes checkoutBtnPop {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .checkout-btn-pop { animation: checkoutBtnPop 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+
+        .shine-sweep {
+          background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.14) 48%, transparent 62%);
+          background-size: 200% 100%;
+          animation: shineSweep 3.4s ease-in-out infinite;
+          pointer-events: none;
+        }
+        @keyframes shineSweep {
+          0% { background-position: 200% 0; }
+          55% { background-position: -40% 0; }
+          100% { background-position: -40% 0; }
+        }
+
         .modal-scroll {
           overscroll-behavior: contain;
           -webkit-overflow-scrolling: touch;
         }
-
         .safe-bottom {
           padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
         }
@@ -959,8 +1027,17 @@ export default function StorefrontClient({
           .animate-fade-up,
           .animate-fade-up-delay,
           .animate-fade-up-delay2,
-          .animate-fade-up-delay3 {
-            animation: none;
+          .animate-fade-up-delay3,
+          .animate-blob-float,
+          .animate-blob-float-delay,
+          .modal-backdrop,
+          .modal-panel,
+          .chip-pop,
+          .variant-pop,
+          .checkmark-pop,
+          .checkout-btn-pop,
+          .shine-sweep {
+            animation: none !important;
           }
           .reveal-card {
             opacity: 1 !important;
@@ -1095,9 +1172,9 @@ export default function StorefrontClient({
                       key={category}
                       type="button"
                       onClick={() => setActiveCategory(category)}
-                      className={`shrink-0 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-[0.1em] transition-all ${
+                      className={`shrink-0 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-[0.1em] transition-all duration-300 ${
                         active
-                          ? "border-emerald-700 bg-emerald-700 text-white shadow-md"
+                          ? "border-emerald-700 bg-emerald-700 text-white shadow-md scale-[1.02]"
                           : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
                       }`}
                     >
