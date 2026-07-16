@@ -91,10 +91,15 @@ const prettifyBaseName = (name: string) =>
     .trim();
 
 const getProductHref = (product: Product, variant?: Variant | null) => {
+  const productId = variant?.productId || product.id;
+
+  if (!productId) return "#";
+
   const params = new URLSearchParams();
-  params.set("product", variant?.productId || product.id);
   if (variant?.id) params.set("variant", variant.id);
-  return `/checkout?${params.toString()}`;
+
+  const qs = params.toString();
+  return `/checkout/${encodeURIComponent(productId)}${qs ? `?${qs}` : ""}`;
 };
 
 const getVariantFromProduct = (product: Product): Variant => {
@@ -202,13 +207,13 @@ const TESTIMONIALS = [
 
 const MARQUEE_ITEMS = [
   "⚡ Proses Instan",
-  "🔒 Transaksi Aman 256-bit SSL",
+  "🔒 Transaksi Aman",
   "🎮 Games & Digital Lengkap",
   "🌙 Layanan 24/7 Nonstop",
   "💳 Multi Payment Method",
   "✅ 120 Ribu+ Transaksi Sukses",
   "⚡ Proses Instan",
-  "🔒 Transaksi Aman 256-bit SSL",
+  "🔒 Transaksi Aman",
   "🎮 Games & Digital Lengkap",
   "🌙 Layanan 24/7 Nonstop",
   "💳 Multi Payment Method",
@@ -394,7 +399,7 @@ function ProductCard({
   const previewVariant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0] ?? null;
 
   return (
-    <article className="reveal-card group relative rounded-[30px] border border-slate-200 bg-white overflow-hidden shadow-[0_12px_35px_rgba(15,23,42,0.05)] hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(5,150,105,0.10)] hover:border-emerald-200 transition-all duration-300">
+    <article className="reveal-card group relative flex h-full flex-col overflow-hidden rounded-[26px] sm:rounded-[30px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.05)] hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(5,150,105,0.10)] hover:border-emerald-200 transition-all duration-300">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600 opacity-90" />
 
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
@@ -405,7 +410,7 @@ function ProductCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
 
-        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-800 shadow-sm">
             <i className="ri-price-tag-3-fill text-emerald-700" />
             {product.category || "Katalog"}
@@ -423,26 +428,26 @@ function ProductCard({
           </span>
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4">
           <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-4 py-3 text-white">
             <div className="text-[10px] uppercase tracking-[0.16em] font-black text-white/70 mb-1">
               Harga mulai
             </div>
-            <div className="text-2xl font-black tracking-tight">
-              <span className="text-sm mr-1 text-white/70">Rp</span>
+            <div className="text-xl sm:text-2xl font-black tracking-tight">
+              <span className="text-xs sm:text-sm mr-1 text-white/70">Rp</span>
               {formatPrice(startingPrice)}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-5 md:p-6">
+      <div className="flex flex-1 flex-col p-4 sm:p-5 md:p-6">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
-            <h3 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight">
+            <h3 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight">
               {product.name}
             </h3>
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700/80 mt-1">
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700/80 mt-1">
               {product.type || previewVariant?.type || "Produk Digital"}
             </p>
           </div>
@@ -461,31 +466,31 @@ function ProductCard({
         </p>
 
         <div className="mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-2.5 sm:p-3">
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
               Varian
             </div>
-            <div className="text-xs font-black text-slate-800">{variantCount || 1} pilihan</div>
+            <div className="text-[11px] sm:text-xs font-black text-slate-800">{variantCount || 1} pilihan</div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-2.5 sm:p-3">
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
               Garansi
             </div>
-            <div className="text-xs font-black text-slate-800">
+            <div className="text-[11px] sm:text-xs font-black text-slate-800 truncate">
               {previewVariant?.warranty || "-"}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-2.5 sm:p-3">
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
               Stok
             </div>
-            <div className="text-xs font-black text-slate-800">{product.stock}</div>
+            <div className="text-[11px] sm:text-xs font-black text-slate-800">{product.stock}</div>
           </div>
         </div>
 
-        <div className="mt-5 flex items-center gap-3">
+        <div className="mt-5 flex flex-col sm:flex-row items-stretch gap-3">
           <button
             type="button"
             onClick={() => onOpen(product)}
@@ -497,7 +502,7 @@ function ProductCard({
 
           <Link
             href={getProductHref(product, previewVariant)}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-black text-emerald-800 transition-all duration-300 hover:bg-emerald-100"
+            className="inline-flex sm:min-w-[120px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-black text-emerald-800 transition-all duration-300 hover:bg-emerald-100"
           >
             <i className="ri-shopping-bag-3-line" />
             Beli
@@ -520,12 +525,20 @@ function ProductModal({
   onClose: () => void;
 }) {
   const titleId = useId();
+  const descId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
+    scrollYRef.current = window.scrollY;
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollYRef.current}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -536,7 +549,13 @@ function ProductModal({
     dialogRef.current?.focus();
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+      document.body.style.overflow = "";
+      window.scrollTo(0, scrollYRef.current);
       document.removeEventListener("keydown", handleKeyDown);
       previousFocusRef.current?.focus();
     };
@@ -544,225 +563,334 @@ function ProductModal({
 
   const selectedPrice = selectedVariant?.price ?? product.sellPrice;
   const checkoutHref = getProductHref(product, selectedVariant);
+  const isAvailable = (selectedVariant?.stock ?? product.stock) > 0;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[9999]">
       <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-md" onClick={onClose} />
 
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="relative w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-t-[28px] sm:rounded-[32px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)] outline-none"
-      >
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden z-10" />
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="min-h-full flex items-end justify-center sm:items-center sm:p-4">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descId}
+            tabIndex={-1}
+            className="relative w-full max-w-5xl h-[92dvh] sm:h-auto sm:max-h-[92dvh] overflow-hidden rounded-t-[28px] sm:rounded-[32px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)] outline-none"
+          >
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden z-10" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] max-h-[92vh]">
-          <div className="relative min-h-[280px] lg:min-h-[680px] overflow-hidden">
-            <ProductImage product={product} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/15 to-transparent" />
+            <div className="grid h-full grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="relative hidden lg:block min-h-[680px] overflow-hidden">
+                <ProductImage product={product} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/15 to-transparent" />
 
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Tutup detail produk"
-              className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-md transition-colors hover:bg-white/25"
-            >
-              <i className="ri-close-line text-lg" />
-            </button>
-
-            <div className="absolute left-5 right-5 bottom-5 text-white">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] mb-3">
-                <i className="ri-shield-check-fill text-emerald-300" />
-                Checkout Aman · PansaStore
-              </span>
-              <h3 id={titleId} className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
-                {product.name}
-              </h3>
-              <p className="mt-3 max-w-xl text-sm md:text-base font-medium leading-7 text-white/80">
-                {product.description ||
-                  "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-5 md:p-6">
-              <div className="flex flex-wrap gap-2 mb-5">
-                {[
-                  { icon: "ri-flashlight-line", label: "Proses Instan" },
-                  { icon: "ri-shield-check-line", label: "Bergaransi" },
-                  { icon: "ri-customer-service-2-line", label: "Support 24/7" },
-                ].map((chip) => (
-                  <div
-                    key={chip.label}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5"
-                  >
-                    <i className={`${chip.icon} text-xs text-emerald-700`} />
-                    <span className="text-[11px] font-bold text-emerald-900">{chip.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 mb-5">
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
-                      Kategori
-                    </div>
-                    <div className="text-sm font-black text-slate-900">{product.category || "-"}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
-                      Paket
-                    </div>
-                    <div className="text-sm font-black text-slate-900">{product.variants?.length || 1}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
-                      Stok
-                    </div>
-                    <div className="text-sm font-black text-slate-900">{product.stock}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    Pilih Paket
-                  </p>
-                  <p className="text-[11px] font-bold text-slate-400">
-                    {product.variants?.length || 1} pilihan tersedia
-                  </p>
-                </div>
-
-                {product.variants && product.variants.length > 0 ? (
-                  <div className="space-y-3">
-                    {product.variants.map((variant) => {
-                      const isSelected = selectedVariant?.id === variant.id;
-                      const outOfStock = variant.stock <= 0;
-
-                      return (
-                        <button
-                          key={`${variant.productId || product.id}-${variant.id}`}
-                          type="button"
-                          disabled={outOfStock}
-                          onClick={() => onSelectVariant(variant)}
-                          className={`w-full text-left rounded-[24px] border p-4 transition-all ${
-                            isSelected
-                              ? "border-emerald-600 bg-emerald-50 shadow-[0_0_0_4px_rgba(5,150,105,0.08)]"
-                              : "border-slate-200 bg-white hover:border-emerald-300"
-                          } ${outOfStock ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm md:text-base font-black text-slate-900 leading-tight">
-                                {variant.name}
-                              </div>
-                              <div className="mt-1 text-xs font-bold text-emerald-700">
-                                {variant.duration}
-                              </div>
-                            </div>
-
-                            {isSelected ? (
-                              <i className="ri-checkbox-circle-fill text-xl text-emerald-600 shrink-0" />
-                            ) : (
-                              <i className="ri-checkbox-blank-circle-line text-xl text-slate-300 shrink-0" />
-                            )}
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">
-                              {variant.type}
-                            </span>
-                            <span className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-                              Garansi {variant.warranty}
-                            </span>
-                          </div>
-
-                          <div className="mt-4 pt-4 border-t border-slate-100 flex items-end justify-between gap-3">
-                            <div>
-                              <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
-                                Harga
-                              </div>
-                              <div className="text-xl font-black tracking-tight text-emerald-800">
-                                <span className="text-xs mr-1">Rp</span>
-                                {formatPrice(variant.price)}
-                              </div>
-                            </div>
-
-                            <div
-                              className={`text-[11px] font-bold ${
-                                outOfStock ? "text-rose-500" : "text-slate-400"
-                              }`}
-                            >
-                              {outOfStock ? "Stok habis" : `Stok ${variant.stock}`}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-sm font-black text-slate-900">Produk tanpa varian</div>
-                    <div className="text-sm font-medium text-slate-500 mt-1">
-                      Harga mulai dari Rp{formatPrice(product.sellPrice)}.
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 bg-white p-5">
-              <div className="rounded-[24px] bg-slate-900 px-5 py-4 text-white mb-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
-                      Total Pembayaran
-                    </div>
-                    <div className="text-3xl font-black tracking-tight">
-                      <span className="text-sm mr-1 text-white/60">Rp</span>
-                      {formatPrice(selectedPrice)}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
-                      Status
-                    </div>
-                    <div className="text-sm font-black text-emerald-300">
-                      {selectedVariant?.stock === 0 ? "Tidak tersedia" : "Siap diproses"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full rounded-2xl bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200"
+                  aria-label="Tutup detail produk"
+                  className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-md transition-colors hover:bg-white/25"
                 >
-                  Tutup
+                  <i className="ri-close-line text-lg" />
                 </button>
 
-                <Link
-                  href={checkoutHref}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
-                >
-                  <i className="ri-lightning-fill" />
-                  Lanjut ke Checkout
-                </Link>
+                <div className="absolute left-5 right-5 bottom-5 text-white">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] mb-3">
+                    <i className="ri-shield-check-fill text-emerald-300" />
+                    Checkout Aman · PansaStore
+                  </span>
+                  <h3 id={titleId} className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                    {product.name}
+                  </h3>
+                  <p
+                    id={descId}
+                    className="mt-3 max-w-xl text-sm md:text-base font-medium leading-7 text-white/80"
+                  >
+                    {product.description ||
+                      "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex min-h-0 flex-col">
+                <div className="sticky top-0 z-10 border-b border-slate-100 bg-white p-4 sm:p-5 lg:hidden">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] mb-3 text-emerald-800">
+                        <i className="ri-shield-check-fill text-emerald-700" />
+                        Checkout Aman
+                      </span>
+                      <h3 id={titleId} className="text-xl font-black tracking-tight text-slate-900 leading-tight">
+                        {product.name}
+                      </h3>
+                      <p
+                        id={descId}
+                        className="mt-2 text-sm font-medium leading-7 text-slate-500"
+                      >
+                        {product.description ||
+                          "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      aria-label="Tutup detail produk"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-emerald-200 hover:text-emerald-700"
+                    >
+                      <i className="ri-close-line text-lg" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 md:p-6">
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    {[
+                      { icon: "ri-flashlight-line", label: "Proses Instan" },
+                      { icon: "ri-shield-check-line", label: "Bergaransi" },
+                      { icon: "ri-customer-service-2-line", label: "Support 24/7" },
+                    ].map((chip) => (
+                      <div
+                        key={chip.label}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5"
+                      >
+                        <i className={`${chip.icon} text-xs text-emerald-700`} />
+                        <span className="text-[11px] font-bold text-emerald-900">{chip.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 mb-5">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
+                          Kategori
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{product.category || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
+                          Paket
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{product.variants?.length || 1}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400 mb-1">
+                          Stok
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{product.stock}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Pilih Paket
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400">
+                        {product.variants?.length || 1} pilihan tersedia
+                      </p>
+                    </div>
+
+                    {product.variants && product.variants.length > 0 ? (
+                      <div className="space-y-3 pb-2">
+                        {product.variants.map((variant) => {
+                          const isSelected = selectedVariant?.id === variant.id;
+                          const outOfStock = variant.stock <= 0;
+
+                          return (
+                            <button
+                              key={`${variant.productId || product.id}-${variant.id}`}
+                              type="button"
+                              disabled={outOfStock}
+                              onClick={() => onSelectVariant(variant)}
+                              className={`w-full text-left rounded-[22px] sm:rounded-[24px] border p-4 transition-all ${
+                                isSelected
+                                  ? "border-emerald-600 bg-emerald-50 shadow-[0_0_0_4px_rgba(5,150,105,0.08)]"
+                                  : "border-slate-200 bg-white hover:border-emerald-300"
+                              } ${outOfStock ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm md:text-base font-black text-slate-900 leading-tight">
+                                    {variant.name}
+                                  </div>
+                                  <div className="mt-1 text-xs font-bold text-emerald-700">
+                                    {variant.duration}
+                                  </div>
+                                </div>
+
+                                {isSelected ? (
+                                  <i className="ri-checkbox-circle-fill text-xl text-emerald-600 shrink-0" />
+                                ) : (
+                                  <i className="ri-checkbox-blank-circle-line text-xl text-slate-300 shrink-0" />
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                                  {variant.type}
+                                </span>
+                                <span className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                                  Garansi {variant.warranty}
+                                </span>
+                              </div>
+
+                              <div className="mt-4 pt-4 border-t border-slate-100 flex items-end justify-between gap-3">
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
+                                    Harga
+                                  </div>
+                                  <div className="text-lg sm:text-xl font-black tracking-tight text-emerald-800">
+                                    <span className="text-xs mr-1">Rp</span>
+                                    {formatPrice(variant.price)}
+                                  </div>
+                                </div>
+
+                                <div
+                                  className={`text-[11px] font-bold ${
+                                    outOfStock ? "text-rose-500" : "text-slate-400"
+                                  }`}
+                                >
+                                  {outOfStock ? "Stok habis" : `Stok ${variant.stock}`}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-sm font-black text-slate-900">Produk tanpa varian</div>
+                        <div className="text-sm font-medium text-slate-500 mt-1">
+                          Harga mulai dari Rp{formatPrice(product.sellPrice)}.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 bg-white p-4 sm:p-5 sticky bottom-0">
+                  <div className="rounded-[24px] bg-slate-900 px-5 py-4 text-white mb-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
+                          Total Pembayaran
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black tracking-tight">
+                          <span className="text-sm mr-1 text-white/60">Rp</span>
+                          {formatPrice(selectedPrice)}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
+                          Status
+                        </div>
+                        <div className={`text-sm font-black ${isAvailable ? "text-emerald-300" : "text-rose-300"}`}>
+                          {isAvailable ? "Siap diproses" : "Tidak tersedia"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full rounded-2xl bg-slate-100 px-5 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200"
+                    >
+                      Tutup
+                    </button>
+
+                    <Link
+                      href={checkoutHref}
+                      className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-black text-white transition-colors ${
+                        isAvailable ? "bg-emerald-700 hover:bg-emerald-600" : "pointer-events-none bg-slate-300"
+                      }`}
+                    >
+                      <i className="ri-lightning-fill" />
+                      Lanjut ke Checkout
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-16 border-t border-slate-200 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 text-white shadow-lg shadow-emerald-900/20">
+                <i className="ri-store-2-fill text-lg" />
+              </div>
+              <div className="leading-none">
+                <div className="text-lg font-black tracking-tight text-slate-900">
+                  Pansa<span className="text-emerald-700">Store</span>
+                </div>
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Digital Marketplace
+                </div>
+              </div>
+            </div>
+
+            <p className="max-w-md text-sm font-medium leading-7 text-slate-500">
+              Marketplace digital dengan proses cepat, tampilan produk yang rapi,
+              dan checkout yang dibuat nyaman untuk mobile maupun desktop.
+            </p>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 mb-4">
+              Navigasi
+            </div>
+            <div className="space-y-3">
+              <Link href="/" className="block text-sm font-bold text-slate-600 hover:text-emerald-700 transition-colors">
+                Beranda
+              </Link>
+              <Link href="/cek-pesanan" className="block text-sm font-bold text-slate-600 hover:text-emerald-700 transition-colors">
+                Cek Pesanan
+              </Link>
+              <Link href="/login" className="block text-sm font-bold text-slate-600 hover:text-emerald-700 transition-colors">
+                Masuk
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 mb-4">
+              Layanan
+            </div>
+            <div className="space-y-3 text-sm font-medium text-slate-500 leading-7">
+              <p>Produk digital resmi.</p>
+              <p>Checkout cepat dan aman.</p>
+              <p>Dukungan pelanggan 24/7.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-slate-400">
+            © {new Date().getFullYear()} PansaStore. All rights reserved.
+          </div>
+          <div className="text-sm font-semibold text-slate-400">
+            Built for fast digital checkout
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -999,254 +1127,204 @@ export default function StorefrontClient({
         </header>
 
         <section
-          className="relative flex flex-col items-center justify-center overflow-hidden bg-white px-4 pt-32 pb-16 md:pt-48 md:pb-24"
-          style={{ paddingTop: "clamp(112px, 18vw, 200px)" }}
+          className="relative overflow-hidden bg-white px-4 pt-28 pb-14 md:pt-40 md:pb-20"
+          style={{ paddingTop: "clamp(104px, 16vw, 172px)" }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.025)_1px,transparent_1px)] bg-[size:36px_36px] [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,#000_60%,transparent_100%)]" />
-          <div className="pointer-events-none absolute top-0 left-1/2 h-[350px] w-[500px] -translate-x-1/2 rounded-full bg-gradient-to-b from-emerald-100/70 via-emerald-50/30 to-transparent blur-[100px] md:h-[500px] md:w-[900px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.025)_1px,transparent_1px)] bg-[size:34px_34px] [mask-image:radial-gradient(ellipse_72%_82%_at_50%_48%,#000_60%,transparent_100%)] pointer-events-none" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[420px] md:w-[820px] h-[280px] md:h-[420px] bg-gradient-to-b from-emerald-100/80 via-emerald-50/40 to-transparent rounded-full blur-[90px] pointer-events-none" />
 
-          <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
-            <div className="animate-fade-up inline-flex items-center gap-2.5 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 shadow-sm mb-6 select-none">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              <i className="ri-shield-check-fill text-sm text-emerald-600" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-                Transaksi Aman · SSL 256-bit Terenkripsi
-              </span>
-            </div>
-
-            <h1 className="animate-fade-up-delay text-[2.7rem] sm:text-5xl md:text-[5.5rem] font-black tracking-tight leading-[1.04] text-slate-900 mb-5 md:mb-6">
-              Top Up & Produk
-              <br />
-              Digital{" "}
-              <span className="relative inline-block bg-gradient-to-r from-emerald-700 to-teal-500 bg-clip-text text-transparent">
-                Tercepat
-                <svg
-                  className="absolute -bottom-1 md:-bottom-2 left-0 w-full"
-                  viewBox="0 0 200 8"
-                  fill="none"
-                >
-                  <path
-                    d="M2 6 C50 2, 150 2, 198 6"
-                    stroke="#10B981"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-              .
-            </h1>
-
-            <p className="animate-fade-up-delay2 mx-auto mb-10 md:mb-12 max-w-2xl text-sm md:text-xl font-semibold leading-relaxed text-slate-500">
-              Platform distribusi produk digital terpercaya dengan sistem otomatis 24 jam,
-              checkout cepat, dan pengiriman instan dalam hitungan detik.
-            </p>
-
-            <div className="animate-fade-up-delay3 mx-auto max-w-3xl">
-              <div className="glass-edge group relative rounded-[28px] border border-slate-200 bg-white p-2">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-6 z-10">
-                  <i className="ri-search-2-line text-2xl text-slate-400 transition-colors duration-300 group-focus-within:text-emerald-700" />
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-14 items-end">
+              <div>
+                <div className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-6">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+                    Platform top up & produk digital terpercaya
+                  </span>
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="Cari game, voucher, atau layanan digital..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-[22px] bg-slate-50 pl-14 pr-12 py-4 md:pl-16 md:py-5 text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 border border-transparent focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
-                  aria-label="Cari produk digital"
-                />
+                <h1 className="animate-fade-up-delay text-[2.8rem] sm:text-5xl md:text-[5.4rem] font-black tracking-tight leading-[1.02] text-slate-900 mb-5">
+                  Top up instan,
+                  <br />
+                  harga hemat,
+                  <br />
+                  transaksi aman.
+                </h1>
 
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute inset-y-0 right-5 flex items-center text-slate-400 transition-colors hover:text-slate-600"
-                    aria-label="Hapus pencarian"
-                  >
-                    <i className="ri-close-circle-fill text-xl" />
-                  </button>
-                )}
+                <p className="animate-fade-up-delay2 max-w-2xl text-sm md:text-xl font-semibold leading-relaxed text-slate-500 mb-8 md:mb-10">
+                  Nikmati pengalaman belanja produk digital yang cepat, modern, dan terpercaya
+                  dengan proses otomatis 24 jam.
+                </p>
+
+                <div className="animate-fade-up-delay3 max-w-2xl relative group">
+                  <div className="absolute inset-y-0 left-0 pl-5 md:pl-6 flex items-center pointer-events-none z-10">
+                    <i className="ri-search-2-line text-slate-400 text-xl md:text-2xl transition-colors duration-300 group-focus-within:text-emerald-700" />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Cari game, voucher, akun premium, atau layanan digital..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-[28px] border-2 border-slate-200 bg-white pl-14 pr-12 py-4 md:pl-16 md:py-5 text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 shadow-[0_18px_50px_rgba(15,23,42,0.06)] glass-edge transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
+                    aria-label="Cari produk digital"
+                  />
+
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                      aria-label="Hapus pencarian"
+                    >
+                      <i className="ri-close-circle-fill text-xl" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <span className="text-xs font-semibold text-slate-400">Populer:</span>
-                {categories.slice(1, 5).map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => {
-                      setActiveCategory(cat);
-                      document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:border-emerald-300 hover:text-emerald-700"
-                  >
-                    {cat}
-                  </button>
-                ))}
+              <div className="animate-fade-up-delay3 hidden lg:block">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur-sm p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-flashlight-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">
+                      Proses Super Cepat
+                    </div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Pembayaran diverifikasi otomatis dan pesanan diproses real-time.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur-sm p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-shield-check-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">
+                      Aman & Bergaransi
+                    </div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Transaksi terlindungi dan semua produk ditampilkan dengan detail jelas.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur-sm p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-layout-grid-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">
+                      Katalog Rapi
+                    </div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Produk dikelompokkan agar pilihan paket lebih mudah dibandingkan.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur-sm p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-customer-service-2-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">
+                      Support 24/7
+                    </div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Tim siap membantu kapan pun kamu butuh bantuan transaksi.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         <TrustBar />
+
+        <section className="py-8 bg-slate-950 overflow-hidden border-y border-slate-800">
+          <div className="flex w-max animate-marquee gap-8 whitespace-nowrap select-none">
+            {MARQUEE_ITEMS.map((item, i) => (
+              <span
+                key={`${item}-section-${i}`}
+                className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100"
+              >
+                {item}
+                <span className="mx-2 text-emerald-500">•</span>
+              </span>
+            ))}
+          </div>
+        </section>
+
         <PromoBanner />
 
-        <section className="py-8 md:py-12 bg-[#F8FAFC]">
+        <section className="py-14 md:py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <i className="ri-flashlight-fill text-emerald-700 text-xl" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
-                  Proses Super Cepat
-                </h3>
-                <p className="text-sm font-medium leading-7 text-slate-500">
-                  Sistem otomatis memproses pesanan lebih cepat setelah pembayaran berhasil.
-                </p>
-              </div>
-
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <i className="ri-shield-check-fill text-emerald-700 text-xl" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
-                  Aman & Stabil
-                </h3>
-                <p className="text-sm font-medium leading-7 text-slate-500">
-                  Pembayaran terenkripsi, sistem rapi, dan alur checkout dibuat sesingkat mungkin.
-                </p>
-              </div>
-
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <i className="ri-customer-service-2-fill text-emerald-700 text-xl" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
-                  Support Responsif
-                </h3>
-                <p className="text-sm font-medium leading-7 text-slate-500">
-                  Cocok untuk buyer retail maupun reseller yang butuh transaksi konsisten.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div
-          id="catalog"
-          className="sticky top-0 z-40 border-y border-slate-200/80 bg-[#F8FAFC]/97 backdrop-blur-xl shadow-sm"
-        >
-          <div className="max-w-7xl mx-auto px-0 md:px-6">
-            <div className="hide-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-3 md:px-0 md:py-4">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setActiveCategory(category)}
-                  className={`shrink-0 whitespace-nowrap rounded-full border px-5 py-2 text-[11px] md:text-xs font-black transition-all duration-200 active:scale-95 ${
-                    activeCategory === category
-                      ? "border-transparent bg-emerald-800 text-white shadow-md shadow-emerald-900/15"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 md:pt-14 pb-20 md:pb-28 min-h-[50vh]">
-          <div className="mb-6 md:mb-10 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="flex items-center gap-2.5 text-xl md:text-3xl font-black tracking-tight text-slate-900">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50">
-                  <i className="ri-apps-2-fill text-base md:text-lg text-emerald-700" />
-                </span>
-                {activeCategory === "SEMUA" ? "Semua Produk" : activeCategory}
-              </h2>
-              <p className="mt-1.5 ml-0.5 text-xs font-semibold text-slate-400">
-                {filteredProducts.length} produk tersedia
-              </p>
-            </div>
-
-            <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500">
-              <i className="ri-filter-3-line text-emerald-700" />
-              Filter aktif: {activeCategory}
-            </div>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="rounded-[32px] border border-slate-200 bg-white py-20 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50">
-                <i className="ri-ghost-2-line text-3xl text-slate-300" />
-              </div>
-              <h3 className="mb-1 text-base font-black text-slate-900">Produk Tidak Ditemukan</h3>
-              <p className="text-sm font-medium text-slate-400">
-                Coba kata kunci atau kategori lain.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} onOpen={openProductDetail} />
-              ))}
-            </div>
-          )}
-        </main>
-
-        <TestimonialsSection />
-
-        <section className="bg-white py-16 md:py-24">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="relative overflow-hidden rounded-[32px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-8 md:p-12 shadow-[0_20px_60px_rgba(5,150,105,0.08)]">
-              <div className="absolute -top-10 right-0 h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-16 left-0 h-56 w-56 rounded-full bg-teal-200/20 blur-3xl pointer-events-none" />
-
-              <div className="relative z-10 max-w-3xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-4 py-2 mb-4">
-                  <i className="ri-rocket-2-fill text-emerald-700" />
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 mb-8 md:mb-10">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
+                  <i className="ri-store-3-fill text-sm text-emerald-700" />
                   <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                    Mulai Sekarang
+                    Pilihan Produk
                   </span>
                 </div>
-
-                <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight text-slate-900 mb-4">
-                  Butuh Produk Digital Cepat,
+                <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+                  Temukan Produk
                   <br className="hidden md:block" />
-                  Aman, dan Siap Jual?
+                  Favoritmu Sekarang
                 </h2>
+              </div>
 
-                <p className="max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-500 mb-6">
-                  Jelajahi katalog, pilih paket yang paling cocok, lalu lanjut ke checkout dalam
-                  beberapa klik tanpa alur yang ribet.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <a
-                    href="#catalog"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
-                  >
-                    <i className="ri-shopping-bag-3-fill" />
-                    Lihat Katalog
-                  </a>
-
-                  <Link
-                    href="/cek-pesanan"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    <i className="ri-search-eye-line" />
-                    Cek Pesanan
-                  </Link>
-                </div>
+              <div className="text-sm font-bold text-slate-400">
+                {filteredProducts.length} produk ditemukan
               </div>
             </div>
+
+            <div className="hide-scrollbar overflow-x-auto -mx-4 px-4 mb-8">
+              <div className="flex gap-3 min-w-max">
+                {categories.map((category) => {
+                  const isActive = activeCategory === category;
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setActiveCategory(category)}
+                      className={`px-4 py-3 rounded-full text-sm font-black transition-all ${
+                        isActive
+                          ? "bg-slate-900 text-white shadow-[0_16px_30px_rgba(15,23,42,0.12)]"
+                          : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} onOpen={openProductDetail} />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-[0_12px_35px_rgba(15,23,42,0.04)]">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-4">
+                  <i className="ri-search-line text-2xl text-slate-400" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">
+                  Produk tidak ditemukan
+                </h3>
+                <p className="text-sm font-medium text-slate-500 max-w-md mx-auto leading-7">
+                  Coba gunakan kata kunci lain atau pilih kategori berbeda untuk menemukan produk yang Anda cari.
+                </p>
+              </div>
+            )}
           </div>
         </section>
+
+        <TestimonialsSection />
+        <Footer />
 
         {selectedProduct && (
           <ProductModal
