@@ -39,12 +39,12 @@ const getInitials = (name: string) => {
 };
 
 const PALETTE = [
-  ["#059669", "#047857"],
-  ["#2563EB", "#1D4ED8"],
+  ["#0F766E", "#065F46"],
+  ["#1D4ED8", "#1E40AF"],
   ["#7C3AED", "#6D28D9"],
-  ["#DB2777", "#BE185D"],
-  ["#D97706", "#B45309"],
-  ["#0891B2", "#0E7490"],
+  ["#BE185D", "#9D174D"],
+  ["#B45309", "#92400E"],
+  ["#0F766E", "#155E75"],
 ] as const;
 
 const getGradientStyle = (name: string) => {
@@ -167,10 +167,10 @@ const groupProductsByBaseName = (products: Product[]): Product[] => {
 };
 
 const TRUST_STATS = [
-  { icon: "ri-shopping-bag-3-fill", value: "120.000+", label: "Transaksi Selesai" },
-  { icon: "ri-star-fill", value: "4.98", label: "Rating Rata-Rata" },
+  { icon: "ri-shopping-bag-3-fill", value: "120.000+", label: "Pesanan Selesai" },
+  { icon: "ri-repeat-2-fill", value: "24/7", label: "Sistem Berjalan" },
   { icon: "ri-user-heart-fill", value: "45.000+", label: "Pelanggan Aktif" },
-  { icon: "ri-timer-flash-fill", value: "< 3 Detik", label: "Kecepatan Proses" },
+  { icon: "ri-timer-flash-fill", value: "< 3 Detik", label: "Waktu Proses" },
 ] as const;
 
 const TESTIMONIALS = [
@@ -179,15 +179,15 @@ const TESTIMONIALS = [
     avatar: "RA",
     role: "Mobile Gamer",
     rating: 5,
-    text: "Top up paling cepat yang pernah saya coba. Bayar QRIS langsung masuk dalam hitungan detik. Gak perlu khawatir soal keamanan.",
-    color: ["#059669", "#047857"],
+    text: "Top up paling cepat yang pernah saya coba. Bayar dan pesanan langsung diproses tanpa alur yang ribet.",
+    color: ["#0F766E", "#065F46"],
   },
   {
     name: "Siti Nur Haliza",
     avatar: "SN",
     role: "Content Creator",
     rating: 5,
-    text: "Udah berlangganan lebih dari setahun. Harga konsisten murah, pelayanan responsif, dan sistemnya tidak pernah bermasalah. Recommended!",
+    text: "Harga konsisten rapi, sistem enak dipakai, dan cocok untuk kebutuhan langganan rutin.",
     color: ["#7C3AED", "#6D28D9"],
   },
   {
@@ -195,150 +195,31 @@ const TESTIMONIALS = [
     avatar: "BS",
     role: "Reseller Digital",
     rating: 5,
-    text: "Margin bagus buat dijual lagi. Admin fast response kalau ada kendala. Stok selalu tersedia, top up lancar terus.",
-    color: ["#2563EB", "#1D4ED8"],
+    text: "Cocok buat dijual lagi karena proses cepat, stok stabil, dan halaman produk jelas.",
+    color: ["#1D4ED8", "#1E40AF"],
   },
-] as const;
-
-const MARQUEE_ITEMS = [
-  "⚡ Proses Instan",
-  "🔒 Transaksi Aman 256-bit SSL",
-  "🎮 Games & Digital Lengkap",
-  "🌙 Layanan 24/7 Nonstop",
-  "💳 Multi Payment Method",
-  "✅ 120 Ribu+ Transaksi Sukses",
-  "⚡ Proses Instan",
-  "🔒 Transaksi Aman 256-bit SSL",
-  "🎮 Games & Digital Lengkap",
-  "🌙 Layanan 24/7 Nonstop",
-  "💳 Multi Payment Method",
-  "✅ 120 Ribu+ Transaksi Sukses",
 ] as const;
 
 function TrustBar() {
   return (
-    <section className="py-12 md:py-16 bg-white border-y border-slate-100">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+    <section className="py-10 md:py-14 bg-white border-y border-slate-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
           {TRUST_STATS.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5 md:p-6 text-center shadow-[0_10px_30px_rgba(15,23,42,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(5,150,105,0.08)] transition-all duration-300"
+              className="rounded-[26px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-5 py-5 md:px-6 md:py-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"
             >
-              <div className="w-12 h-12 md:w-14 md:h-14 mx-auto rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3">
-                <i className={`${stat.icon} text-emerald-700 text-xl md:text-2xl`} />
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3">
+                <i className={`${stat.icon} text-emerald-700 text-xl`} />
               </div>
               <div className="text-2xl md:text-3xl font-black tracking-tight text-slate-900">
                 {stat.value}
               </div>
-              <div className="text-[11px] md:text-xs text-slate-500 font-bold uppercase tracking-[0.14em] mt-1.5">
+              <div className="mt-1 text-[11px] md:text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                 {stat.label}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PromoBanner() {
-  return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
-      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 p-8 md:p-12 shadow-[0_30px_80px_-20px_rgba(6,78,59,0.45)]">
-        <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-12 h-80 w-80 rounded-full bg-emerald-300/10 blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-8">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 mb-5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75 animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-yellow-300" />
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/90">
-                Promo Spesial Hari Ini
-              </span>
-            </div>
-
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-white leading-[1.05] mb-3">
-              Diskon Hingga <span className="text-yellow-300">30%</span> untuk
-              <br className="hidden md:block" />
-              Member Baru
-            </h2>
-
-            <p className="text-sm md:text-base text-emerald-50/80 font-medium max-w-xl leading-relaxed">
-              Daftar sekarang dan nikmati harga spesial untuk semua kategori produk digital
-              dengan checkout otomatis yang cepat dan aman.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-start md:items-end gap-3">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-7 py-3.5 text-sm font-black text-emerald-800 shadow-lg transition-all duration-300 hover:bg-yellow-300 hover:text-emerald-900 active:scale-95"
-            >
-              <i className="ri-user-add-fill" />
-              Daftar Gratis Sekarang
-            </Link>
-            <p className="text-[11px] font-semibold text-emerald-100/70 flex items-center gap-1.5">
-              <i className="ri-shield-check-line" />
-              Tanpa biaya pendaftaran
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TestimonialsSection() {
-  return (
-    <section className="py-16 md:py-24 bg-slate-50 border-y border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-10 md:mb-14">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
-            <i className="ri-star-smile-fill text-sm text-emerald-700" />
-            <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-              Testimoni Pelanggan
-            </span>
-          </div>
-          <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            Dipercaya Puluhan Ribu
-            <br className="hidden md:block" />
-            Pelanggan Aktif
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-          {TESTIMONIALS.map((t) => (
-            <article
-              key={t.name}
-              className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-7 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(5,150,105,0.08)]"
-            >
-              <div className="flex items-center gap-1 text-yellow-400 mb-4">
-                {Array.from({ length: t.rating }).map((_, j) => (
-                  <i key={j} className="ri-star-fill text-sm" />
-                ))}
-              </div>
-
-              <p className="text-sm font-medium leading-7 text-slate-600 min-h-[120px]">
-                &ldquo;{t.text}&rdquo;
-              </p>
-
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-3">
-                <div
-                  className="h-11 w-11 rounded-full flex items-center justify-center text-white text-xs font-black shadow-sm"
-                  style={{ background: `linear-gradient(135deg, ${t.color[0]}, ${t.color[1]})` }}
-                >
-                  {t.avatar}
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900">{t.name}</div>
-                  <div className="text-[11px] font-semibold text-slate-400">{t.role}</div>
-                </div>
-                <i className="ri-verified-badge-fill ml-auto text-lg text-emerald-600" />
-              </div>
-            </article>
           ))}
         </div>
       </div>
@@ -370,11 +251,11 @@ function ProductImage({
 
   return (
     <div
-      className={`w-full h-full flex flex-col items-center justify-center text-white ${className || ""}`}
+      className={`w-full h-full flex items-center justify-center text-white ${className || ""}`}
       style={getGradientStyle(product.name)}
       aria-label={product.name}
     >
-      <span className="text-3xl md:text-5xl font-black tracking-tighter drop-shadow-md opacity-90">
+      <span className="text-3xl md:text-5xl font-black tracking-tighter drop-shadow-md opacity-95">
         {getInitials(product.name)}
       </span>
     </div>
@@ -383,9 +264,11 @@ function ProductImage({
 
 function ProductCard({
   product,
+  featured = false,
   onOpen,
 }: {
   product: Product;
+  featured?: boolean;
   onOpen: (product: Product) => void;
 }) {
   const startingPrice = product.sellPrice;
@@ -394,114 +277,127 @@ function ProductCard({
   const previewVariant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0] ?? null;
 
   return (
-    <article className="reveal-card group relative rounded-[30px] border border-slate-200 bg-white overflow-hidden shadow-[0_12px_35px_rgba(15,23,42,0.05)] hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(5,150,105,0.10)] hover:border-emerald-200 transition-all duration-300">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600 opacity-90" />
+    <article
+      className={`reveal-card group relative overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-200 hover:shadow-[0_24px_60px_rgba(5,150,105,0.10)] ${
+        featured ? "md:col-span-2" : ""
+      }`}
+    >
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-700 via-[#C8A24D] to-emerald-700 opacity-90" />
 
-      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-        <ProductImage
-          product={product}
-          square
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+      <div className={`grid ${featured ? "md:grid-cols-[1.05fr_0.95fr]" : "grid-cols-1"} h-full`}>
+        <div className={`relative overflow-hidden ${featured ? "min-h-[320px] md:min-h-full" : "aspect-[4/3]"}`}>
+          <ProductImage
+            product={product}
+            square
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent" />
 
-        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-800 shadow-sm">
-            <i className="ri-price-tag-3-fill text-emerald-700" />
-            {product.category || "Katalog"}
-          </span>
+          <div className="absolute top-4 left-4 right-4 flex items-start justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/92 backdrop-blur-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-800 shadow-sm">
+                {product.category || "Katalog"}
+              </span>
 
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] shadow-sm ${
-              inStock
-                ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
-                : "bg-rose-50 text-rose-700 border border-rose-100"
-            }`}
-          >
-            <i className={inStock ? "ri-checkbox-circle-fill" : "ri-close-circle-fill"} />
-            {inStock ? "Ready Stock" : "Stok Habis"}
-          </span>
-        </div>
-
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-4 py-3 text-white">
-            <div className="text-[10px] uppercase tracking-[0.16em] font-black text-white/70 mb-1">
-              Harga mulai
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] shadow-sm ${
+                  inStock
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                    : "bg-rose-50 text-rose-700 border border-rose-100"
+                }`}
+              >
+                <i className={inStock ? "ri-checkbox-circle-fill" : "ri-close-circle-fill"} />
+                {inStock ? "Tersedia" : "Habis"}
+              </span>
             </div>
-            <div className="text-2xl font-black tracking-tight">
-              <span className="text-sm mr-1 text-white/70">Rp</span>
-              {formatPrice(startingPrice)}
+
+            {featured && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/80 backdrop-blur-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white">
+                Pilihan
+              </span>
+            )}
+          </div>
+
+          <div className="absolute bottom-4 left-4 right-4">
+            <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-4 py-3 text-white">
+              <div className="text-[10px] uppercase tracking-[0.16em] font-black text-white/70 mb-1">
+                Harga mulai
+              </div>
+              <div className="text-2xl md:text-[2rem] font-black tracking-tight">
+                <span className="text-sm mr-1 text-white/70">Rp</span>
+                {formatPrice(startingPrice)}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="p-5 md:p-6">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0">
-            <h3 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight">
-              {product.name}
-            </h3>
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700/80 mt-1">
-              {product.type || previewVariant?.type || "Produk Digital"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2 text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
-              Paket
+        <div className="p-5 md:p-6 flex flex-col">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="min-w-0">
+              <h3 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-tight">
+                {product.name}
+              </h3>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700/80 mt-1.5">
+                {product.type || previewVariant?.type || "Produk Digital"}
+              </p>
             </div>
-            <div className="text-sm font-black text-slate-900">{variantCount || 1}</div>
-          </div>
-        </div>
 
-        <p className="text-sm leading-7 font-medium text-slate-500 line-clamp-3 min-h-[84px]">
-          {product.description ||
-            "Produk digital resmi dengan pengiriman cepat, aman, dan otomatis selama 24 jam."}
-        </p>
-
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
-              Varian
-            </div>
-            <div className="text-xs font-black text-slate-800">{variantCount || 1} pilihan</div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
-              Garansi
-            </div>
-            <div className="text-xs font-black text-slate-800">
-              {previewVariant?.warranty || "-"}
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2 text-right shrink-0">
+              <div className="text-[10px] uppercase tracking-[0.14em] font-black text-slate-400">
+                Paket
+              </div>
+              <div className="text-sm font-black text-slate-900">{variantCount || 1}</div>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
-              Stok
+          <p className="text-sm leading-7 font-medium text-slate-500 line-clamp-3 min-h-[84px]">
+            {product.description ||
+              "Produk digital resmi dengan pilihan paket yang rapi dan alur pembelian yang cepat."}
+          </p>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+              <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+                Varian
+              </div>
+              <div className="text-xs font-black text-slate-800">{variantCount || 1} opsi</div>
             </div>
-            <div className="text-xs font-black text-slate-800">{product.stock}</div>
+
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+              <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+                Garansi
+              </div>
+              <div className="text-xs font-black text-slate-800">
+                {previewVariant?.warranty || "-"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+              <div className="text-[10px] uppercase tracking-[0.12em] font-black text-slate-400 mb-1">
+                Stok
+              </div>
+              <div className="text-xs font-black text-slate-800">{product.stock}</div>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-5 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onOpen(product)}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-800 active:scale-[0.98]"
-          >
-            <i className="ri-eye-line" />
-            Lihat Detail
-          </button>
+          <div className="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onOpen(product)}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-800 active:scale-[0.98]"
+            >
+              <i className="ri-eye-line" />
+              Detail
+            </button>
 
-          <Link
-            href={getProductHref(product, previewVariant)}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-black text-emerald-800 transition-all duration-300 hover:bg-emerald-100"
-          >
-            <i className="ri-shopping-bag-3-line" />
-            Beli
-          </Link>
+            <Link
+              href={getProductHref(product, previewVariant)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-black text-emerald-800 transition-all duration-300 hover:bg-emerald-100"
+            >
+              <i className="ri-shopping-bag-3-line" />
+              Beli
+            </Link>
+          </div>
         </div>
       </div>
     </article>
@@ -520,6 +416,7 @@ function ProductModal({
   onClose: () => void;
 }) {
   const titleId = useId();
+  const descId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -547,22 +444,23 @@ function ProductModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose} />
 
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={descId}
         tabIndex={-1}
-        className="relative w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-t-[28px] sm:rounded-[32px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)] outline-none"
+        className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-t-[28px] sm:rounded-[34px] bg-white shadow-[0_35px_100px_rgba(15,23,42,0.35)] outline-none"
       >
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden z-10" />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] max-h-[92vh]">
-          <div className="relative min-h-[280px] lg:min-h-[680px] overflow-hidden">
+          <div className="relative min-h-[280px] lg:min-h-[720px] overflow-hidden">
             <ProductImage product={product} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/15 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/15 to-transparent" />
 
             <button
               type="button"
@@ -575,37 +473,25 @@ function ProductModal({
 
             <div className="absolute left-5 right-5 bottom-5 text-white">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] mb-3">
-                <i className="ri-shield-check-fill text-emerald-300" />
-                Checkout Aman · PansaStore
+                {product.category || "Katalog"}
               </span>
+
               <h3 id={titleId} className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
                 {product.name}
               </h3>
-              <p className="mt-3 max-w-xl text-sm md:text-base font-medium leading-7 text-white/80">
+
+              <p
+                id={descId}
+                className="mt-3 max-w-xl text-sm md:text-base font-medium leading-7 text-white/80"
+              >
                 {product.description ||
-                  "Produk digital resmi dengan pengiriman instan, pembayaran aman, dan pemrosesan otomatis selama 24 jam."}
+                  "Pilih paket yang paling sesuai, lalu lanjutkan ke checkout dari detail produk ini."}
               </p>
             </div>
           </div>
 
           <div className="flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-5 md:p-6">
-              <div className="flex flex-wrap gap-2 mb-5">
-                {[
-                  { icon: "ri-flashlight-line", label: "Proses Instan" },
-                  { icon: "ri-shield-check-line", label: "Bergaransi" },
-                  { icon: "ri-customer-service-2-line", label: "Support 24/7" },
-                ].map((chip) => (
-                  <div
-                    key={chip.label}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5"
-                  >
-                    <i className={`${chip.icon} text-xs text-emerald-700`} />
-                    <span className="text-[11px] font-bold text-emerald-900">{chip.label}</span>
-                  </div>
-                ))}
-              </div>
-
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 mb-5">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -635,7 +521,7 @@ function ProductModal({
                     Pilih Paket
                   </p>
                   <p className="text-[11px] font-bold text-slate-400">
-                    {product.variants?.length || 1} pilihan tersedia
+                    {product.variants?.length || 1} opsi tersedia
                   </p>
                 </div>
 
@@ -722,7 +608,7 @@ function ProductModal({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.14em] font-black text-white/55">
-                      Total Pembayaran
+                      Total
                     </div>
                     <div className="text-3xl font-black tracking-tight">
                       <span className="text-sm mr-1 text-white/60">Rp</span>
@@ -766,6 +652,59 @@ function ProductModal({
   );
 }
 
+function TestimonialsSection() {
+  return (
+    <section className="py-16 md:py-24 bg-white border-t border-slate-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="mb-10 md:mb-14 max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
+            <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
+              Ulasan Pelanggan
+            </span>
+          </div>
+          <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+            Pengalaman belanja yang
+            <br className="hidden md:block" />
+            konsisten dan jelas
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+          {TESTIMONIALS.map((t) => (
+            <article
+              key={t.name}
+              className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 md:p-7 shadow-[0_10px_30px_rgba(15,23,42,0.03)]"
+            >
+              <div className="flex items-center gap-1 text-yellow-400 mb-4">
+                {Array.from({ length: t.rating }).map((_, j) => (
+                  <i key={j} className="ri-star-fill text-sm" />
+                ))}
+              </div>
+
+              <p className="text-sm font-medium leading-7 text-slate-600 min-h-[112px]">
+                &ldquo;{t.text}&rdquo;
+              </p>
+
+              <div className="mt-5 pt-4 border-t border-slate-200 flex items-center gap-3">
+                <div
+                  className="h-11 w-11 rounded-full flex items-center justify-center text-white text-xs font-black shadow-sm"
+                  style={{ background: `linear-gradient(135deg, ${t.color[0]}, ${t.color[1]})` }}
+                >
+                  {t.avatar}
+                </div>
+                <div>
+                  <div className="text-sm font-black text-slate-900">{t.name}</div>
+                  <div className="text-[11px] font-semibold text-slate-400">{t.role}</div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function StorefrontClient({
   initialProducts,
   isLoggedIn = false,
@@ -776,6 +715,7 @@ export default function StorefrontClient({
   const [isScrolled, setIsScrolled] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [featuredIds, setFeaturedIds] = useState<string[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const groupedProducts = useMemo(() => {
@@ -787,6 +727,19 @@ export default function StorefrontClient({
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const featured = [...groupedProducts]
+      .sort((a, b) => {
+        const aScore = (a.variants?.length || 1) * 100 + a.stock;
+        const bScore = (b.variants?.length || 1) * 100 + b.stock;
+        return bScore - aScore;
+      })
+      .slice(0, 2)
+      .map((item) => item.id);
+
+    setFeaturedIds(featured);
+  }, [groupedProducts]);
 
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
@@ -801,7 +754,7 @@ export default function StorefrontClient({
           observerRef.current?.unobserve(entry.target);
         });
       },
-      { threshold: 0.05, rootMargin: "50px" }
+      { threshold: 0.05, rootMargin: "40px" }
     );
 
     document.querySelectorAll(".reveal-card").forEach((el) => {
@@ -844,6 +797,12 @@ export default function StorefrontClient({
     });
   }, [groupedProducts, searchQuery, activeCategory]);
 
+  const orderedProducts = useMemo(() => {
+    const featured = filteredProducts.filter((item) => featuredIds.includes(item.id));
+    const regular = filteredProducts.filter((item) => !featuredIds.includes(item.id));
+    return [...featured, ...regular];
+  }, [filteredProducts, featuredIds]);
+
   const primaryAccountHref = isLoggedIn
     ? userRole === "ADMIN"
       ? "/admin"
@@ -862,15 +821,6 @@ export default function StorefrontClient({
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-
-        .animate-marquee {
-          animation: marquee 28s linear infinite;
-        }
-
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -885,14 +835,7 @@ export default function StorefrontClient({
           transition: opacity 0.6s ease, transform 0.6s ease;
         }
 
-        .glass-edge {
-          box-shadow:
-            0 1px 0 rgba(255,255,255,0.6) inset,
-            0 10px 30px rgba(15,23,42,0.06);
-        }
-
         @media (prefers-reduced-motion: reduce) {
-          .animate-marquee,
           .animate-fade-up,
           .animate-fade-up-delay,
           .animate-fade-up-delay2,
@@ -911,24 +854,6 @@ export default function StorefrontClient({
         style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
       >
         <header className="fixed inset-x-0 top-0 z-50">
-          <div
-            className={`overflow-hidden bg-emerald-800 transition-all duration-300 ease-out ${
-              isScrolled ? "h-0 py-0 opacity-0" : "h-auto py-2.5 opacity-100"
-            }`}
-          >
-            <div className="flex w-max animate-marquee gap-8 whitespace-nowrap select-none">
-              {MARQUEE_ITEMS.map((item, i) => (
-                <span
-                  key={`${item}-${i}`}
-                  className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100"
-                >
-                  {item}
-                  <span className="mx-2 text-emerald-500">•</span>
-                </span>
-              ))}
-            </div>
-          </div>
-
           <nav
             className={`transition-all duration-300 ease-out ${
               isScrolled
@@ -938,7 +863,7 @@ export default function StorefrontClient({
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
               <Link href="/" className="group flex items-center gap-2.5 shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 text-white shadow-lg shadow-emerald-900/20 transition-all group-hover:scale-[1.03]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 text-white shadow-lg shadow-emerald-900/20">
                   <i className="ri-store-2-fill text-lg" />
                 </div>
                 <div className="leading-none">
@@ -999,149 +924,117 @@ export default function StorefrontClient({
         </header>
 
         <section
-          className="relative flex flex-col items-center justify-center overflow-hidden bg-white px-4 pt-32 pb-16 md:pt-48 md:pb-24"
-          style={{ paddingTop: "clamp(112px, 18vw, 200px)" }}
+          className="relative overflow-hidden bg-white px-4 pt-28 pb-14 md:pt-40 md:pb-20"
+          style={{ paddingTop: "clamp(104px, 16vw, 172px)" }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.025)_1px,transparent_1px)] bg-[size:36px_36px] [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,#000_60%,transparent_100%)]" />
-          <div className="pointer-events-none absolute top-0 left-1/2 h-[350px] w-[500px] -translate-x-1/2 rounded-full bg-gradient-to-b from-emerald-100/70 via-emerald-50/30 to-transparent blur-[100px] md:h-[500px] md:w-[900px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.025)_1px,transparent_1px)] bg-[size:34px_34px] [mask-image:radial-gradient(ellipse_72%_82%_at_50%_48%,#000_60%,transparent_100%)] pointer-events-none" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[420px] md:w-[820px] h-[280px] md:h-[420px] bg-gradient-to-b from-emerald-100/80 via-emerald-50/40 to-transparent rounded-full blur-[90px] pointer-events-none" />
 
-          <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
-            <div className="animate-fade-up inline-flex items-center gap-2.5 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 shadow-sm mb-6 select-none">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              <i className="ri-shield-check-fill text-sm text-emerald-600" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-                Transaksi Aman · SSL 256-bit Terenkripsi
-              </span>
-            </div>
-
-            <h1 className="animate-fade-up-delay text-[2.7rem] sm:text-5xl md:text-[5.5rem] font-black tracking-tight leading-[1.04] text-slate-900 mb-5 md:mb-6">
-              Top Up & Produk
-              <br />
-              Digital{" "}
-              <span className="relative inline-block bg-gradient-to-r from-emerald-700 to-teal-500 bg-clip-text text-transparent">
-                Tercepat
-                <svg
-                  className="absolute -bottom-1 md:-bottom-2 left-0 w-full"
-                  viewBox="0 0 200 8"
-                  fill="none"
-                >
-                  <path
-                    d="M2 6 C50 2, 150 2, 198 6"
-                    stroke="#10B981"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-              .
-            </h1>
-
-            <p className="animate-fade-up-delay2 mx-auto mb-10 md:mb-12 max-w-2xl text-sm md:text-xl font-semibold leading-relaxed text-slate-500">
-              Platform distribusi produk digital terpercaya dengan sistem otomatis 24 jam,
-              checkout cepat, dan pengiriman instan dalam hitungan detik.
-            </p>
-
-            <div className="animate-fade-up-delay3 mx-auto max-w-3xl">
-              <div className="glass-edge group relative rounded-[28px] border border-slate-200 bg-white p-2">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-6 z-10">
-                  <i className="ri-search-2-line text-2xl text-slate-400 transition-colors duration-300 group-focus-within:text-emerald-700" />
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-14 items-end">
+              <div>
+                <div className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-6">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+                    Katalog produk digital terkurasi
+                  </span>
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="Cari game, voucher, atau layanan digital..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-[22px] bg-slate-50 pl-14 pr-12 py-4 md:pl-16 md:py-5 text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 border border-transparent focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
-                  aria-label="Cari produk digital"
-                />
+                <h1 className="animate-fade-up-delay text-[2.8rem] sm:text-5xl md:text-[5.4rem] font-black tracking-tight leading-[1.02] text-slate-900 mb-5">
+                  Katalog yang
+                  <br />
+                  jelas, cepat,
+                  <br />
+                  dan siap dibeli.
+                </h1>
 
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute inset-y-0 right-5 flex items-center text-slate-400 transition-colors hover:text-slate-600"
-                    aria-label="Hapus pencarian"
-                  >
-                    <i className="ri-close-circle-fill text-xl" />
-                  </button>
-                )}
+                <p className="animate-fade-up-delay2 max-w-2xl text-sm md:text-xl font-semibold leading-relaxed text-slate-500 mb-8 md:mb-10">
+                  Telusuri produk, bandingkan paket, lalu lanjut ke checkout dengan alur yang ringkas
+                  dan tampilan yang mudah dipahami.
+                </p>
+
+                <div className="animate-fade-up-delay3 max-w-2xl relative group">
+                  <div className="absolute inset-y-0 left-0 pl-5 md:pl-6 flex items-center pointer-events-none z-10">
+                    <i className="ri-search-2-line text-slate-400 text-xl md:text-2xl transition-colors duration-300 group-focus-within:text-emerald-700" />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Cari game, voucher, akun, atau layanan digital..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-[28px] border-2 border-slate-200 bg-white pl-14 pr-12 py-4 md:pl-16 md:py-5 text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
+                    aria-label="Cari produk digital"
+                  />
+
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                      aria-label="Hapus pencarian"
+                    >
+                      <i className="ri-close-circle-fill text-xl" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <span className="text-xs font-semibold text-slate-400">Populer:</span>
-                {categories.slice(1, 5).map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => {
-                      setActiveCategory(cat);
-                      document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:border-emerald-300 hover:text-emerald-700"
-                  >
-                    {cat}
-                  </button>
-                ))}
+              <div className="animate-fade-up-delay3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-layout-grid-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">Grid Rapi</div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Struktur katalog lebih mudah dipindai dan dibandingkan.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-stack-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">Paket Jelas</div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Informasi penting ditempatkan tanpa elemen yang mengganggu.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-flashlight-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">Alur Singkat</div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Pengunjung bisa masuk dari browse ke checkout dengan cepat.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                      <i className="ri-compasses-2-fill text-emerald-700 text-xl" />
+                    </div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight mb-1">Navigasi Ringan</div>
+                    <p className="text-sm font-medium leading-6 text-slate-500">
+                      Fokus ke katalog, kategori, dan tombol aksi utama.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         <TrustBar />
-        <PromoBanner />
-
-        <section className="py-8 md:py-12 bg-[#F8FAFC]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <i className="ri-flashlight-fill text-emerald-700 text-xl" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
-                  Proses Super Cepat
-                </h3>
-                <p className="text-sm font-medium leading-7 text-slate-500">
-                  Sistem otomatis memproses pesanan lebih cepat setelah pembayaran berhasil.
-                </p>
-              </div>
-
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <i className="ri-shield-check-fill text-emerald-700 text-xl" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
-                  Aman & Stabil
-                </h3>
-                <p className="text-sm font-medium leading-7 text-slate-500">
-                  Pembayaran terenkripsi, sistem rapi, dan alur checkout dibuat sesingkat mungkin.
-                </p>
-              </div>
-
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <i className="ri-customer-service-2-fill text-emerald-700 text-xl" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
-                  Support Responsif
-                </h3>
-                <p className="text-sm font-medium leading-7 text-slate-500">
-                  Cocok untuk buyer retail maupun reseller yang butuh transaksi konsisten.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <div
           id="catalog"
-          className="sticky top-0 z-40 border-y border-slate-200/80 bg-[#F8FAFC]/97 backdrop-blur-xl shadow-sm"
+          className="sticky top-0 z-40 bg-[#F8FAFC]/95 backdrop-blur-xl border-y border-slate-200/80 shadow-sm"
         >
           <div className="max-w-7xl mx-auto px-0 md:px-6">
-            <div className="hide-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-3 md:px-0 md:py-4">
+            <div className="flex overflow-x-auto py-3 md:py-4 gap-2 px-4 md:px-0 hide-scrollbar items-center">
               {categories.map((category) => (
                 <button
                   key={category}
@@ -1149,8 +1042,8 @@ export default function StorefrontClient({
                   onClick={() => setActiveCategory(category)}
                   className={`shrink-0 whitespace-nowrap rounded-full border px-5 py-2 text-[11px] md:text-xs font-black transition-all duration-200 active:scale-95 ${
                     activeCategory === category
-                      ? "border-transparent bg-emerald-800 text-white shadow-md shadow-emerald-900/15"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      ? "bg-emerald-800 text-white border-transparent shadow-md shadow-emerald-900/15"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
                   }`}
                 >
                   {category}
@@ -1161,39 +1054,41 @@ export default function StorefrontClient({
         </div>
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 md:pt-14 pb-20 md:pb-28 min-h-[50vh]">
-          <div className="mb-6 md:mb-10 flex items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8 md:mb-10">
             <div>
-              <h2 className="flex items-center gap-2.5 text-xl md:text-3xl font-black tracking-tight text-slate-900">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50">
-                  <i className="ri-apps-2-fill text-base md:text-lg text-emerald-700" />
-                </span>
-                {activeCategory === "SEMUA" ? "Semua Produk" : activeCategory}
+              <h2 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900">
+                {activeCategory === "SEMUA" ? "Pilihan Produk" : activeCategory}
               </h2>
-              <p className="mt-1.5 ml-0.5 text-xs font-semibold text-slate-400">
-                {filteredProducts.length} produk tersedia
+              <p className="text-sm font-medium text-slate-500 mt-2">
+                {orderedProducts.length} produk tersedia untuk ditelusuri.
               </p>
             </div>
 
-            <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500">
-              <i className="ri-filter-3-line text-emerald-700" />
-              Filter aktif: {activeCategory}
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500 w-fit">
+              <i className="ri-layout-grid-line text-emerald-700" />
+              Tata katalog editorial
             </div>
           </div>
 
-          {filteredProducts.length === 0 ? (
-            <div className="rounded-[32px] border border-slate-200 bg-white py-20 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50">
-                <i className="ri-ghost-2-line text-3xl text-slate-300" />
+          {orderedProducts.length === 0 ? (
+            <div className="text-center py-20 bg-white border border-slate-200 rounded-[32px] shadow-sm">
+              <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i className="ri-search-line text-3xl text-slate-300" />
               </div>
-              <h3 className="mb-1 text-base font-black text-slate-900">Produk Tidak Ditemukan</h3>
-              <p className="text-sm font-medium text-slate-400">
+              <h3 className="text-base font-black text-slate-900 mb-1">Produk tidak ditemukan</h3>
+              <p className="text-sm text-slate-400 font-medium">
                 Coba kata kunci atau kategori lain.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} onOpen={openProductDetail} />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6 auto-rows-[1fr]">
+              {orderedProducts.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  featured={index < 2 && featuredIds.includes(product.id)}
+                  onOpen={openProductDetail}
+                />
               ))}
             </div>
           )}
@@ -1201,43 +1096,41 @@ export default function StorefrontClient({
 
         <TestimonialsSection />
 
-        <section className="bg-white py-16 md:py-24">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="relative overflow-hidden rounded-[32px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-8 md:p-12 shadow-[0_20px_60px_rgba(5,150,105,0.08)]">
-              <div className="absolute -top-10 right-0 h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-16 left-0 h-56 w-56 rounded-full bg-teal-200/20 blur-3xl pointer-events-none" />
+        <section className="bg-[#F8FAFC] py-16 md:py-24 border-t border-slate-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="rounded-[34px] border border-slate-200 bg-white p-8 md:p-12 shadow-[0_20px_60px_rgba(15,23,42,0.04)]">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 items-end">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
+                    <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
+                      Mulai belanja
+                    </span>
+                  </div>
 
-              <div className="relative z-10 max-w-3xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-4 py-2 mb-4">
-                  <i className="ri-rocket-2-fill text-emerald-700" />
-                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                    Mulai Sekarang
-                  </span>
+                  <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight text-slate-900 mb-4">
+                    Temukan paket yang tepat
+                    <br className="hidden md:block" />
+                    untuk kebutuhan Anda.
+                  </h2>
+
+                  <p className="max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-500">
+                    Telusuri katalog, buka detail produk, lalu pilih paket yang paling sesuai tanpa
+                    antarmuka yang terasa berlebihan.
+                  </p>
                 </div>
 
-                <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight text-slate-900 mb-4">
-                  Butuh Produk Digital Cepat,
-                  <br className="hidden md:block" />
-                  Aman, dan Siap Jual?
-                </h2>
-
-                <p className="max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-500 mb-6">
-                  Jelajahi katalog, pilih paket yang paling cocok, lalu lanjut ke checkout dalam
-                  beberapa klik tanpa alur yang ribet.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-3">
                   <a
                     href="#catalog"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-3.5 text-sm font-black text-white transition-colors hover:bg-emerald-600"
                   >
                     <i className="ri-shopping-bag-3-fill" />
-                    Lihat Katalog
+                    Jelajahi Katalog
                   </a>
 
                   <Link
                     href="/cek-pesanan"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-3.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100"
                   >
                     <i className="ri-search-eye-line" />
                     Cek Pesanan
