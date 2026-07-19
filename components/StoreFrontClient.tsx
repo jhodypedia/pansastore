@@ -221,6 +221,24 @@ const MARQUEE_ITEMS = [
   "✅ 120 Ribu+ Transaksi Sukses",
 ] as const;
 
+const VALUE_POINTS = [
+  {
+    icon: "ri-flashlight-fill",
+    title: "Serba Instan",
+    desc: "Order diproses otomatis selama 24 jam dengan sistem yang stabil dan cepat.",
+  },
+  {
+    icon: "ri-shield-check-fill",
+    title: "Aman & Terpercaya",
+    desc: "Checkout aman, metode pembayaran lengkap, dan dukungan transaksi yang rapi.",
+  },
+  {
+    icon: "ri-stack-fill",
+    title: "Paket Lengkap",
+    desc: "Banyak pilihan paket, durasi, dan harga sehingga mudah disesuaikan kebutuhan.",
+  },
+] as const;
+
 function TrustBar() {
   return (
     <section className="py-12 md:py-16 bg-white border-y border-slate-100">
@@ -252,12 +270,13 @@ function TrustBar() {
 function PromoBanner() {
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
-      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 p-8 md:p-12 shadow-[0_30px_80px_-20px_rgba(6,78,59,0.45)]">
+      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-800 p-8 md:p-12 shadow-[0_30px_80px_-20px_rgba(6,78,59,0.45)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.14),transparent_26%)]" />
         <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl pointer-events-none animate-blob-float" />
         <div className="absolute -bottom-24 -left-12 h-80 w-80 rounded-full bg-emerald-300/10 blur-3xl pointer-events-none animate-blob-float-delay" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-8">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 mb-5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 mb-5 backdrop-blur">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75 animate-ping" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-yellow-300" />
@@ -275,7 +294,7 @@ function PromoBanner() {
 
             <p className="text-sm md:text-base text-emerald-50/80 font-medium max-w-xl leading-relaxed">
               Daftar sekarang dan nikmati harga spesial untuk semua kategori produk digital
-              dengan checkout otomatis yang cepat dan aman.
+              dengan checkout otomatis yang cepat, premium, dan aman.
             </p>
           </div>
 
@@ -354,6 +373,69 @@ function TestimonialsSection() {
   );
 }
 
+function WhyUsSection() {
+  return (
+    <section className="py-16 md:py-24 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid lg:grid-cols-[0.95fr_1.05fr] gap-8 md:gap-10 items-start">
+          <div className="reveal-card rounded-[32px] border border-slate-200 bg-slate-950 p-7 md:p-10 text-white shadow-[0_30px_80px_-28px_rgba(15,23,42,0.55)] overflow-hidden relative">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.28),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.12),transparent_24%)]" />
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                <i className="ri-vip-crown-2-fill text-yellow-300" />
+                <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
+                  Super Store Experience
+                </span>
+              </div>
+
+              <h2 className="mt-5 text-3xl md:text-5xl font-black leading-[1.06] tracking-tight">
+                Store digital yang terasa cepat,
+                <span className="text-emerald-300"> aman</span>, dan premium.
+              </h2>
+
+              <p className="mt-4 max-w-xl text-sm md:text-base leading-7 text-white/70 font-medium">
+                Fokus kami bukan hanya harga murah, tetapi juga pengalaman belanja yang rapi,
+                jelas, otomatis, dan nyaman dipakai kapan saja.
+              </p>
+
+              <div className="mt-8 grid grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/50">
+                    Uptime Service
+                  </div>
+                  <div className="mt-1 text-2xl font-black">99.9%</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/50">
+                    Support
+                  </div>
+                  <div className="mt-1 text-2xl font-black">24/7</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-4">
+            {VALUE_POINTS.map((item, i) => (
+              <article
+                key={item.title}
+                style={{ animationDelay: `${i * 90}ms` }}
+                className="reveal-card rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_30px_rgba(15,23,42,0.04)] hover:-translate-y-1 hover:border-emerald-200 transition-all duration-300"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center mb-4">
+                  <i className={`${item.icon} text-xl`} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">{item.title}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-500 font-medium">{item.desc}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ProductImage({
   product,
   className,
@@ -402,20 +484,21 @@ function ProductCard({
   const previewVariant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0] ?? null;
 
   return (
-    <article className="reveal-card group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-200 hover:shadow-[0_24px_60px_rgba(5,150,105,0.12)]">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-[#C8A24D] to-emerald-600 opacity-90" />
-      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <div className="absolute -right-14 -top-14 h-40 w-40 rounded-full bg-emerald-200/30 blur-3xl" />
-        <div className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-sky-200/20 blur-3xl" />
+    <article className="reveal-card group product-card-spotlight relative flex h-full flex-col overflow-hidden rounded-[30px] border border-slate-200/90 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.06)] transition-all duration-500 hover:-translate-y-2 hover:border-emerald-200 hover:shadow-[0_28px_70px_rgba(5,150,105,0.12)]">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-[#D8B15D] to-emerald-600 opacity-90" />
+      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+        <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-200/30 blur-3xl" />
+        <div className="absolute -bottom-20 -left-14 h-44 w-44 rounded-full bg-sky-200/20 blur-3xl" />
       </div>
 
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         <ProductImage
           product={product}
           square
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.045]"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-950/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/5 to-transparent" />
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.20),transparent_38%)]" />
 
         <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/85 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-800 shadow-sm backdrop-blur-md">
@@ -589,7 +672,7 @@ function ProductModal({
   return (
     <div className="fixed inset-0 z-[9999]">
       <div
-        className="modal-backdrop absolute inset-0 bg-slate-950/70 backdrop-blur-md"
+        className="modal-backdrop absolute inset-0 bg-slate-950/75 backdrop-blur-md"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -853,6 +936,7 @@ export default function StorefrontClient({
   const [isScrolled, setIsScrolled] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [mouseGlow, setMouseGlow] = useState({ x: 50, y: 20 });
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const groupedProducts = useMemo(() => {
@@ -935,7 +1019,7 @@ export default function StorefrontClient({
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
         * { box-sizing: border-box; }
-        body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+        body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f8fafc; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -958,7 +1042,7 @@ export default function StorefrontClient({
 
         .glass-edge {
           box-shadow:
-            0 1px 0 rgba(255,255,255,0.6) inset,
+            0 1px 0 rgba(255,255,255,0.7) inset,
             0 10px 30px rgba(15,23,42,0.06);
         }
 
@@ -966,414 +1050,524 @@ export default function StorefrontClient({
           0%, 100% { transform: translate(0, 0) scale(1); }
           50% { transform: translate(-14px, 18px) scale(1.06); }
         }
-        .animate-blob-float { animation: blobFloat 9s ease-in-out infinite; }
-        .animate-blob-float-delay { animation: blobFloat 11s ease-in-out infinite 1.2s; }
+        .animate-blob-float { animation: blobFloat 8s ease-in-out infinite; }
+        .animate-blob-float-delay { animation: blobFloat 10s ease-in-out 1.2s infinite; }
 
-        @keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes modalPanelIn {
-          from { opacity: 0; transform: translateY(24px) scale(0.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes shineSweep {
+          0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+          20% { opacity: .08; }
+          100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
         }
-        .modal-backdrop { animation: modalBackdropIn 0.25s ease-out both; }
-        .modal-panel { animation: modalPanelIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+        .shine-sweep::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.10) 45%, rgba(255,255,255,0.26) 50%, transparent 55%);
+          animation: shineSweep 5.5s linear infinite;
+        }
 
         @keyframes chipPop {
-          from { opacity: 0; transform: translateY(8px) scale(0.9); }
+          from { opacity: 0; transform: translateY(10px) scale(.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .chip-pop { animation: chipPop 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+        .chip-pop { animation: chipPop .45s ease both; }
 
         @keyframes variantPop {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(12px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .variant-pop { animation: variantPop 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+        .variant-pop { animation: variantPop .4s ease both; }
 
-        @keyframes checkmarkPop {
-          0% { transform: scale(0.6); }
-          60% { transform: scale(1.25); }
-          100% { transform: scale(1); }
+        @keyframes checkPop {
+          0% { transform: scale(.7); opacity: 0; }
+          70% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
-        .checkmark-pop { animation: checkmarkPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .checkmark-pop { animation: checkPop .28s ease; }
 
-        @keyframes checkoutBtnPop {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes checkoutPop {
+          from { opacity: 0; transform: translateY(8px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .checkout-btn-pop { animation: checkoutBtnPop 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+        .checkout-btn-pop { animation: checkoutPop .35s ease both; }
 
-        .shine-sweep {
-          background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.14) 48%, transparent 62%);
-          background-size: 200% 100%;
-          animation: shineSweep 3.4s ease-in-out infinite;
+        .modal-backdrop { animation: fadeUp .25s ease-out both; }
+        .modal-panel { animation: fadeUp .32s cubic-bezier(0.16,1,0.3,1) both; }
+
+        .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+
+        .hero-grid {
+          background-image:
+            linear-gradient(rgba(15,23,42,0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15,23,42,0.05) 1px, transparent 1px);
+          background-size: 28px 28px;
+          mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 88%);
+          -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 88%);
+        }
+
+        .spotlight-shell::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at var(--mx,50%) var(--my,20%), rgba(255,255,255,0.22), transparent 22%),
+            radial-gradient(circle at 80% 12%, rgba(250,204,21,0.12), transparent 18%),
+            radial-gradient(circle at 18% 80%, rgba(16,185,129,0.14), transparent 22%);
           pointer-events: none;
         }
-        @keyframes shineSweep {
-          0% { background-position: 200% 0; }
-          55% { background-position: -40% 0; }
-          100% { background-position: -40% 0; }
-        }
 
-        .modal-scroll {
-          overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
+        .product-card-spotlight::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          transition: opacity .35s ease;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(255,255,255,0.35), transparent 34%);
+          pointer-events: none;
         }
-        .safe-bottom {
-          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-        }
+        .product-card-spotlight:hover::before { opacity: 1; }
 
         @media (prefers-reduced-motion: reduce) {
           .animate-marquee,
-          .animate-fade-up,
-          .animate-fade-up-delay,
-          .animate-fade-up-delay2,
-          .animate-fade-up-delay3,
           .animate-blob-float,
           .animate-blob-float-delay,
-          .modal-backdrop,
-          .modal-panel,
+          .shine-sweep::before,
           .chip-pop,
           .variant-pop,
           .checkmark-pop,
           .checkout-btn-pop,
-          .shine-sweep {
+          .animate-fade-up,
+          .animate-fade-up-delay,
+          .animate-fade-up-delay2,
+          .animate-fade-up-delay3 {
             animation: none !important;
           }
-          .reveal-card {
-            opacity: 1 !important;
-            transform: none !important;
+          .reveal-card,
+          .modal-panel,
+          .modal-backdrop {
+            transition: none !important;
           }
         }
       `}</style>
 
-      <div
-        className="min-h-screen overflow-x-hidden bg-[#F8FAFC] text-slate-900 flex flex-col"
-        style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-      >
-        <header className="fixed inset-x-0 top-0 z-50">
-          <div
-            className={`overflow-hidden bg-emerald-800 transition-all duration-300 ease-out ${
-              isScrolled ? "h-0 py-0 opacity-0" : "h-auto py-2.5 opacity-100"
-            }`}
-          >
-            <div className="flex w-max animate-marquee gap-8 whitespace-nowrap select-none">
-              {MARQUEE_ITEMS.map((item, i) => (
-                <span
-                  key={`${item}-${i}`}
-                  className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100"
-                >
-                  {item}
-                  <span className="mx-2 text-emerald-500">•</span>
-                </span>
-              ))}
-            </div>
-          </div>
+      <div className="relative overflow-hidden bg-slate-50">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_48%)]" />
+          <div className="absolute left-0 top-24 h-72 w-72 rounded-full bg-emerald-200/20 blur-3xl" />
+          <div className="absolute right-0 top-12 h-80 w-80 rounded-full bg-yellow-200/20 blur-3xl" />
+        </div>
 
-          <nav
-            className={`transition-all duration-300 ease-out ${
-              isScrolled
-                ? "border-b border-slate-200 bg-white py-3 shadow-sm"
-                : "bg-white/95 py-4 md:py-5 backdrop-blur-xl"
-            }`}
-          >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
-              <Link href="/" className="group flex items-center gap-2.5 shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 text-white shadow-lg shadow-emerald-900/20 transition-all group-hover:scale-[1.03]">
-                  <i className="ri-store-2-fill text-lg" />
+        <header
+          className={`sticky top-0 z-40 transition-all duration-300 ${
+            isScrolled
+              ? "border-b border-slate-200/80 bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+              : "bg-transparent"
+          }`}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="flex items-center justify-between py-4">
+              <Link href="/" className="flex items-center gap-3">
+                <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white shadow-[0_12px_30px_rgba(5,150,105,0.28)]">
+                  <i className="ri-store-3-fill text-xl" />
                 </div>
-                <div className="leading-none">
-                  <div className="text-base md:text-lg font-black tracking-tight text-slate-900">
-                    Pansa<span className="text-emerald-700">Store</span>
-                  </div>
-                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                    Digital Marketplace
+                <div>
+                  <div className="text-base font-black tracking-tight text-slate-900">PansaStore</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
+                    Super Digital Store
                   </div>
                 </div>
               </Link>
 
-              <div className="hidden md:flex items-center gap-6">
-                <Link
-                  href="/"
-                  className="text-sm font-bold text-slate-500 transition-colors hover:text-emerald-700"
-                >
-                  Beranda
-                </Link>
-                <Link
-                  href="/cek-pesanan"
-                  className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition-colors hover:text-emerald-700"
-                >
-                  <i className="ri-search-eye-line" />
-                  Cek Pesanan
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-2 md:gap-3">
-                <Link
-                  href="/cek-pesanan"
-                  className="md:hidden flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                  aria-label="Cek pesanan"
-                >
-                  <i className="ri-search-eye-line text-base" />
-                </Link>
-
-                <Link
-                  href={primaryAccountHref}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-xs md:text-sm font-black text-white transition-all duration-300 hover:bg-emerald-800 active:scale-95"
-                >
-                  <i className={`${isLoggedIn ? "ri-dashboard-line" : "ri-user-3-line"} text-sm`} />
-                  <span className="hidden sm:inline">{primaryAccountLabel}</span>
-                </Link>
-              </div>
-            </div>
-          </nav>
-        </header>
-
-        <main className="flex-1 pt-[104px] md:pt-[118px]">
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 md:pt-10">
-            <div className="animate-fade-up max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                  Marketplace Digital Terpercaya
-                </span>
-              </div>
-
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.05]">
-                Belanja produk digital
-                <br />
-                <span className="text-emerald-700">cepat, aman, dan otomatis</span>
-              </h1>
-
-              <p className="mt-5 max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-500">
-                Cari produk favoritmu, pilih paket yang sesuai, lalu selesaikan pembayaran via QRIS
-                tanpa ribet. Semua transaksi diproses otomatis selama 24 jam.
-              </p>
-            </div>
-
-            <div className="animate-fade-up-delay mt-8 flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="relative flex-1">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5 text-slate-400">
-                  <i className="ri-search-line text-lg" />
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari produk, kategori, atau paket..."
-                  className="w-full rounded-2xl border border-slate-200 bg-white py-4 pl-12 pr-4 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100"
-                />
-              </div>
-
-              <div className="hide-scrollbar flex gap-2 overflow-x-auto pb-1 md:pb-0">
-                {categories.map((category) => {
-                  const active = activeCategory === category;
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setActiveCategory(category)}
-                      className={`shrink-0 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-[0.1em] transition-all duration-300 ${
-                        active
-                          ? "border-emerald-700 bg-emerald-700 text-white shadow-md scale-[1.02]"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
-                      }`}
-                    >
-                      {category}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <TrustBar />
-          <PromoBanner />
-
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-14">
-            <div className="mb-6 md:mb-8 flex items-end justify-between gap-4">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-3">
-                  <i className="ri-layout-grid-fill text-sm text-emerald-700" />
-                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                    Produk Pilihan
-                  </span>
-                </div>
-                <h2 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900">
-                  Temukan produk digital terbaik
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-500">
-                  Pilih paket yang paling sesuai, buka detail produk, lalu lanjutkan checkout dengan
-                  cepat.
-                </p>
-              </div>
-
-              <div className="hidden md:flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500 shadow-sm">
-                <i className="ri-box-3-line text-emerald-700" />
-                {filteredProducts.length} produk tampil
-              </div>
-            </div>
-
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 2xl:grid-cols-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} onOpen={openProductDetail} />
+              <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-2 py-2 backdrop-blur glass-edge">
+                {["Promo", "Populer", "Kategori", "Testimoni"].map((item) => (
+                  <a
+                    key={item}
+                    href={`#${item.toLowerCase()}`}
+                    className="rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-800"
+                  >
+                    {item}
+                  </a>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-[32px] border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-500">
-                  <i className="ri-search-line text-2xl" />
-                </div>
-                <h3 className="mt-5 text-xl font-black text-slate-900">Produk tidak ditemukan</h3>
-                <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-7 text-slate-500">
-                  Coba ubah kata kunci pencarian atau pilih kategori lain untuk melihat katalog yang
-                  tersedia.
-                </p>
-              </div>
-            )}
-          </section>
 
-          <TestimonialsSection />
-        </main>
-
-        <footer className="border-t border-slate-200 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-14">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-              <div className="xl:pr-8">
-                <Link href="/" className="group inline-flex items-center gap-2.5">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 text-white shadow-lg shadow-emerald-900/20">
-                    <i className="ri-store-2-fill text-lg" />
-                  </div>
-                  <div className="leading-none">
-                    <div className="text-lg font-black tracking-tight text-slate-900">
-                      Pansa<span className="text-emerald-700">Store</span>
-                    </div>
-                    <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                      Digital Marketplace
-                    </div>
-                  </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href={primaryAccountHref}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm transition-all duration-300 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                >
+                  <i className="ri-user-line" />
+                  {primaryAccountLabel}
                 </Link>
+              </div>
+            </div>
+          </div>
+        </header>
 
-                <p className="mt-4 max-w-sm text-sm font-medium leading-7 text-slate-500">
-                  Tempat belanja produk digital yang cepat, aman, dan nyaman dipakai di semua
-                  perangkat.
-                </p>
-
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-800">
-                    Proses Instan
+        <section
+          className="relative"
+          onMouseMove={(e) => {
+            const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            setMouseGlow({ x, y });
+          }}
+        >
+          <div className="hero-grid absolute inset-0 pointer-events-none" />
+          <div
+            className="spotlight-shell absolute inset-0 pointer-events-none"
+            style={
+              {
+                ["--mx" as any]: `${mouseGlow.x}%`,
+                ["--my" as any]: `${mouseGlow.y}%`,
+              } as React.CSSProperties
+            }
+          />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 md:pt-16 pb-10 md:pb-16 relative z-10">
+            <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-10 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-4 py-2 backdrop-blur glass-edge animate-fade-up">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                   </span>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">
-                    Aman
-                  </span>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">
-                    Support 24/7
+                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
+                    Store Otomatis • Aman • Premium
                   </span>
                 </div>
-              </div>
 
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-900">
-                  Navigasi
-                </h3>
-                <div className="mt-4 space-y-3">
-                  <Link
-                    href="/"
-                    className="block text-sm font-semibold text-slate-500 transition-colors hover:text-emerald-700"
+                <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.96] text-slate-950 animate-fade-up-delay">
+                  Belanja Produk
+                  <span className="block text-emerald-700">Digital Super Cepat</span>
+                  <span className="block">Dengan Vibe Premium</span>
+                </h1>
+
+                <p className="mt-5 max-w-2xl text-sm sm:text-base md:text-lg leading-8 text-slate-600 font-medium animate-fade-up-delay2">
+                  PansaStore menghadirkan pengalaman belanja digital yang instan, aman,
+                  dan terasa seperti super store modern — lengkap dengan banyak pilihan paket,
+                  pembayaran cepat, dan pemrosesan otomatis 24/7.
+                </p>
+
+                <div className="mt-7 flex flex-col sm:flex-row gap-3 animate-fade-up-delay3">
+                  <a
+                    href="#katalog"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-4 text-sm font-black text-white shadow-[0_18px_40px_rgba(5,150,105,0.26)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-600"
                   >
-                    Beranda
-                  </Link>
-                  <Link
-                    href="/cek-pesanan"
-                    className="block text-sm font-semibold text-slate-500 transition-colors hover:text-emerald-700"
-                  >
-                    Cek Pesanan
-                  </Link>
+                    <i className="ri-flashlight-fill" />
+                    Jelajahi Katalog
+                  </a>
                   <Link
                     href={primaryAccountHref}
-                    className="block text-sm font-semibold text-slate-500 transition-colors hover:text-emerald-700"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-black text-slate-800 shadow-sm transition-all duration-300 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
                   >
+                    <i className="ri-dashboard-line" />
                     {primaryAccountLabel}
                   </Link>
                 </div>
-              </div>
 
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-900">
-                  Kategori
-                </h3>
-                <div className="mt-4 space-y-3">
-                  {categories.slice(1, 5).map((category) => (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setActiveCategory(category)}
-                      className="block text-left text-sm font-semibold text-slate-500 transition-colors hover:text-emerald-700"
+                <div className="mt-8 flex flex-wrap gap-3">
+                  {[
+                    "QRIS & metode pembayaran lengkap",
+                    "Checkout cepat dan otomatis",
+                    "Cocok untuk user & reseller",
+                  ].map((point) => (
+                    <div
+                      key={point}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-xs font-bold text-slate-700 backdrop-blur glass-edge"
                     >
-                      {category}
-                    </button>
+                      <i className="ri-check-line text-emerald-700" />
+                      {point}
+                    </div>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-900">
-                  Bantuan
-                </h3>
-                <div className="mt-4 space-y-3">
-                  <p className="text-sm font-semibold text-slate-500">
-                    Pembayaran otomatis via QRIS
-                  </p>
-                  <p className="text-sm font-semibold text-slate-500">Pengiriman digital cepat</p>
-                  <p className="text-sm font-semibold text-slate-500">
-                    Layanan pelanggan responsif
-                  </p>
+              <div className="relative animate-fade-up-delay2">
+                <div className="relative rounded-[36px] border border-white/60 bg-white/70 p-4 sm:p-5 backdrop-blur-xl shadow-[0_30px_80px_-28px_rgba(15,23,42,0.25)] glass-edge">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-[28px] bg-gradient-to-br from-slate-950 to-slate-800 p-5 text-white relative overflow-hidden">
+                      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-400/20 blur-2xl" />
+                      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
+                        Live Metrics
+                      </div>
+                      <div className="mt-3 text-3xl font-black">99.9%</div>
+                      <div className="mt-1 text-sm font-medium text-white/70">Uptime Sistem</div>
+                    </div>
+
+                    <div className="rounded-[28px] bg-gradient-to-br from-emerald-50 to-white p-5 border border-emerald-100">
+                      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700/70">
+                        Proses
+                      </div>
+                      <div className="mt-3 text-3xl font-black text-slate-900">&lt; 3s</div>
+                      <div className="mt-1 text-sm font-medium text-slate-500">Rata-rata transaksi</div>
+                    </div>
+
+                    <div className="col-span-2 rounded-[30px] border border-slate-200 bg-white p-5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                            Kategori Populer
+                          </div>
+                          <div className="mt-2 text-xl font-black text-slate-900">
+                            Games, Voucher, Premium App
+                          </div>
+                        </div>
+                        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-lg">
+                          <i className="ri-vip-diamond-fill text-2xl" />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-3 gap-3">
+                        {[
+                          ["Aman", "Pembayaran"],
+                          ["Cepat", "Checkout"],
+                          ["Lengkap", "Pilihan"],
+                        ].map(([a, b]) => (
+                          <div key={a} className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-3 text-center">
+                            <div className="text-sm font-black text-slate-900">{a}</div>
+                            <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{b}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-5 rounded-[24px] border border-emerald-100 bg-emerald-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-white">
-                      <i className="ri-customer-service-2-line" />
+                <div className="absolute -left-4 top-8 hidden md:block rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700">
+                      <i className="ri-shield-check-fill text-xl" />
                     </div>
                     <div>
-                      <div className="text-sm font-black text-slate-900">
-                        Butuh bantuan cepat?
-                      </div>
-                      <div className="mt-1 text-sm font-medium leading-6 text-slate-600">
-                        Gunakan menu cek pesanan atau lanjut ke dashboard untuk memantau
-                        transaksi.
-                      </div>
+                      <div className="text-xs font-black text-slate-900">Checkout Aman</div>
+                      <div className="text-[11px] font-medium text-slate-500">Transaksi terenkripsi</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="absolute -right-4 bottom-10 hidden md:block rounded-2xl border border-yellow-100 bg-white px-4 py-3 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-yellow-50 flex items-center justify-center text-yellow-600">
+                      <i className="ri-flashlight-fill text-xl" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-900">Instant Delivery</div>
+                      <div className="text-[11px] font-medium text-slate-500">Cepat & otomatis</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-10 flex flex-col gap-3 border-t border-slate-200 pt-5 text-xs font-semibold text-slate-400 md:flex-row md:items-center md:justify-between">
-              <p>© 2026 PansaStore. Semua hak dilindungi.</p>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="ri-shield-check-line text-emerald-700" />
-                  Checkout aman
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="ri-flashlight-line text-emerald-700" />
-                  Pemrosesan cepat
-                </span>
+            <div className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur glass-edge">
+              <div className="flex min-w-max animate-marquee gap-10 whitespace-nowrap px-6 py-4">
+                {MARQUEE_ITEMS.map((item, idx) => (
+                  <div key={`${item}-${idx}`} className="text-sm font-black tracking-wide text-slate-700">
+                    {item}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        </footer>
-      </div>
+        </section>
 
-      {selectedProduct && (
-        <ProductModal
-          product={selectedProduct}
-          selectedVariant={selectedVariant}
-          onSelectVariant={setSelectedVariant}
-          onClose={closeModal}
-        />
-      )}
+        <TrustBar />
+        <WhyUsSection />
+
+        <section id="katalog" className="py-16 md:py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="mb-8 md:mb-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
+                  <i className="ri-store-2-fill text-sm text-emerald-700" />
+                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
+                    Katalog Produk
+                  </span>
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-950 leading-tight">
+                  Temukan paket terbaik
+                  <br className="hidden md:block" />
+                  untuk kebutuhan digital Anda
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm md:text-base leading-7 text-slate-500 font-medium">
+                  Cari produk favorit, pilih kategori, lalu checkout dalam beberapa klik.
+                </p>
+              </div>
+
+              <div className="rounded-[28px] border border-slate-200 bg-white p-2 shadow-[0_16px_40px_rgba(15,23,42,0.05)] w-full max-w-xl">
+                <div className="flex items-center gap-3 px-3">
+                  <div className="h-11 w-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                    <i className="ri-search-2-line text-xl" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari game, voucher, premium app, atau nama paket..."
+                    className="w-full bg-transparent py-4 outline-none text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400"
+                  />
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="h-10 w-10 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                      aria-label="Reset pencarian"
+                    >
+                      <i className="ri-close-line text-xl" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky top-[76px] z-20 mb-8">
+              <div className="hide-scrollbar overflow-x-auto rounded-[26px] border border-slate-200 bg-white/85 p-2 backdrop-blur-xl shadow-[0_14px_35px_rgba(15,23,42,0.05)]">
+                <div className="flex w-max gap-2">
+                  {categories.map((category) => {
+                    const active = activeCategory === category;
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setActiveCategory(category)}
+                        className={`rounded-2xl px-4 py-3 text-sm font-black transition-all duration-300 ${
+                          active
+                            ? "bg-emerald-700 text-white shadow-[0_14px_30px_rgba(5,150,105,0.22)]"
+                            : "bg-white text-slate-600 hover:bg-emerald-50 hover:text-emerald-800"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm font-bold text-slate-500">
+                Menampilkan <span className="text-slate-900">{filteredProducts.length}</span> produk
+                {activeCategory !== "SEMUA" ? (
+                  <> di kategori <span className="text-emerald-700">{activeCategory}</span></>
+                ) : null}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "Top Seller",
+                  "Auto Process",
+                  "Harga Kompetitif",
+                ].map((tag) => (
+                  <div
+                    key={tag}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-600"
+                  >
+                    <i className="ri-sparkling-2-fill text-emerald-700" />
+                    {tag}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="rounded-[32px] border border-dashed border-slate-300 bg-white p-10 md:p-16 text-center shadow-sm">
+                <div className="mx-auto mb-5 h-20 w-20 rounded-[26px] bg-slate-100 flex items-center justify-center text-slate-400">
+                  <i className="ri-search-eye-line text-4xl" />
+                </div>
+                <h3 className="text-2xl font-black tracking-tight text-slate-900">
+                  Produk tidak ditemukan
+                </h3>
+                <p className="mt-3 max-w-xl mx-auto text-sm md:text-base leading-7 text-slate-500 font-medium">
+                  Coba ubah kata kunci pencarian atau pilih kategori lain untuk melihat produk yang tersedia.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setActiveCategory("SEMUA");
+                  }}
+                  className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-6 py-3.5 text-sm font-black text-white transition-all hover:bg-emerald-700"
+                >
+                  <i className="ri-refresh-line" />
+                  Reset Filter
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} onOpen={openProductDetail} />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <PromoBanner />
+        <TestimonialsSection />
+
+        <section className="py-16 md:py-24 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="rounded-[36px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-8 md:p-12 text-white shadow-[0_30px_80px_-28px_rgba(15,23,42,0.55)] relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.10),transparent_24%)]" />
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+                <div className="max-w-2xl">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                    <i className="ri-award-fill text-yellow-300" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
+                      Premium Commerce Experience
+                    </span>
+                  </div>
+                  <h2 className="mt-5 text-3xl md:text-5xl font-black tracking-tight leading-[1.05]">
+                    Siap belanja digital
+                    <br className="hidden md:block" />
+                    dengan rasa super store?
+                  </h2>
+                  <p className="mt-4 text-sm md:text-base leading-7 text-white/70 font-medium">
+                    Jelajahi katalog, pilih paket yang paling cocok, dan nikmati checkout yang cepat,
+                    modern, serta meyakinkan dari awal sampai selesai.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href="#katalog"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-slate-900 transition-all hover:bg-yellow-300"
+                  >
+                    <i className="ri-shopping-bag-3-fill" />
+                    Mulai Belanja
+                  </a>
+                  <Link
+                    href={primaryAccountHref}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-4 text-sm font-black text-white backdrop-blur transition-all hover:bg-white/10"
+                  >
+                    <i className="ri-user-line" />
+                    {primaryAccountLabel}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {selectedProduct && (
+          <ProductModal
+            product={selectedProduct}
+            selectedVariant={selectedVariant}
+            onSelectVariant={setSelectedVariant}
+            onClose={closeModal}
+          />
+        )}
+
+        <div className="fixed bottom-4 left-1/2 z-30 w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 md:hidden">
+          <a
+            href="#katalog"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_20px_40px_rgba(15,23,42,0.28)]"
+          >
+            <i className="ri-search-eye-line" />
+            Jelajahi Produk Sekarang
+          </a>
+        </div>
+      </div>
     </>
   );
 }
