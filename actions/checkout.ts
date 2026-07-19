@@ -3,7 +3,11 @@
 import crypto from "node:crypto";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
-import { sendWhatsAppMessage, WATemplates } from "@/lib/whatsapp";
+import {
+  sendInvoiceWithQris,
+  sendWhatsAppMessage,
+  WATemplates,
+} from "@/lib/whatsapp";
 
 type PaymentData = {
   order_id: string;
@@ -12,6 +16,8 @@ type PaymentData = {
   fee: number;
   payment_number: string;
   expired_at: string;
+  qris_image_url?: string | null;
+  qr_string?: string | null;
 };
 
 type CheckoutResult =
@@ -22,6 +28,7 @@ type CheckoutResult =
       invoiceId: string;
       invoiceUrl: string;
       amount: number;
+      qrisImageUrl?: string | null;
     }
   | {
       success: false;
@@ -36,6 +43,17 @@ function normalizePhone(phone: string): string | null {
   if (digits.startsWith("62")) return digits;
   if (digits.startsWith("0")) return `62${digits.slice(1)}`;
   if (digits.startsWith("8")) return `62${digits}`;
+
+  return null;
+}
+
+function normalizeUrl(value: unknown): string | null {
+  const text = String(value || "").trim();
+  if (!text) return null;
+
+  if (/^https?:\/\//i.test(text)) {
+    return text;
+  }
 
   return null;
 }
@@ -55,7 +73,6 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     const whatsappRaw = String(formData.get("whatsapp") || "").trim();
     const method = String(formData.get("method") || "qris").trim().toLowerCase();
 
-    // variantId sekarang OPSIONAL — produk tanpa varian asli tidak mengirim field ini.
     if (!productId || !targetId || !whatsappRaw) {
       return {
         success: false,
@@ -64,6 +81,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     }
 
     const whatsapp = normalizePhone(whatsappRaw);
+
     if (!whatsapp) {
       return {
         success: false,
@@ -107,7 +125,6 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       };
     }
 
-    // Kasus 1: ada variantId → wajib valid & cocok dengan productId.
     if (variantId) {
       if (!variant || !variant.product) {
         return {
@@ -130,7 +147,6 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         };
       }
     } else {
-      // Kasus 2: produk tanpa varian asli → pakai stok & harga dari produk langsung.
       if ((product.stock ?? 0) <= 0) {
         return {
           success: false,
@@ -140,6 +156,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     }
 
     const finalPrice = Number(variant ? variant.price : product.sellPrice);
+
     if (!Number.isFinite(finalPrice) || finalPrice <= 0) {
       return {
         success: false,
@@ -147,7 +164,6 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       };
     }
 
-    // productCode dipakai sebagai key unik pengecekan pending & pengiriman produk.
     const productCode = variant ? variant.id : product.id;
 
     const existingPending = await prisma.transaction.findFirst({
@@ -161,8 +177,14 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       },
     });
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
+
     if (existingPending) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
+      const existingProductDetails =
+        typeof existingPending.productDetails === "string"
+          ? JSON.parse(existingPending.productDetails)
+          : existingPending.productDetails || {};
+
       return {
         success: true,
         message: "Invoice pending sebelumnya masih aktif.",
@@ -170,6 +192,10 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         invoiceId: existingPending.invoiceId,
         invoiceUrl: `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(existingPending.invoiceId)}`,
         amount: Number(existingPending.amount),
+        qrisImageUrl:
+          normalizeUrl(existingProductDetails?.qrisImageUrl) ||
+          normalizeUrl(existingProductDetails?.qris_image_url) ||
+          null,
       };
     }
 
@@ -199,6 +225,9 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
           type: productType,
           duration: productDuration,
           warranty: productWarranty,
+          qrisImageUrl: null,
+          qris_image_url: null,
+          qr_string: null,
         }),
       },
     });
@@ -228,6 +257,21 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
 
     const paymentRaw = paymentResult.data.payment;
 
+    const qrisImageUrl =
+      normalizeUrl(paymentRaw?.qris_image_url) ||
+      normalizeUrl(paymentRaw?.qrisImageUrl) ||
+      normalizeUrl(paymentResult?.data?.qris_image_url) ||
+      normalizeUrl(paymentResult?.data?.qrisImageUrl) ||
+      null;
+
+    const qrString =
+      String(
+        paymentRaw?.qr_string ||
+          paymentRaw?.qr_string_value ||
+          paymentRaw?.payment_number ||
+          ""
+      ).trim() || null;
+
     const payment: PaymentData = {
       order_id: String(paymentRaw.order_id),
       amount: Number(paymentRaw.amount),
@@ -235,23 +279,61 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       fee: Number(paymentRaw.fee),
       payment_number: String(paymentRaw.payment_number),
       expired_at: String(paymentRaw.expired_at),
+      qris_image_url: qrisImageUrl,
+      qr_string: qrString,
     };
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
     const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(invoiceId)}`;
+
+    await prisma.transaction.update({
+      where: { invoiceId },
+      data: {
+        productDetails: JSON.stringify({
+          productId: product.id,
+          productName,
+          variantId: variant?.id ?? null,
+          variantName,
+          targetId,
+          customerPhone: whatsapp,
+          type: productType,
+          duration: productDuration,
+          warranty: productWarranty,
+          qrisImageUrl,
+          qris_image_url: qrisImageUrl,
+          qr_string: qrString,
+          payment_number: payment.payment_number,
+          expired_at: payment.expired_at,
+          total_payment: payment.total_payment,
+          fee: payment.fee,
+        }),
+      },
+    });
 
     try {
       const waMessage = WATemplates.invoiceCreated({
         invoiceId,
-        productName: `${productName} - ${variantName}`,
+        productName:
+          variant && variant.name !== product.name
+            ? `${productName} - ${variantName}`
+            : productName,
         targetId,
         price: finalPrice,
         paymentUrl: invoiceUrl,
       });
 
-      void sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
-        console.error("[Checkout WA Error] Gagal kirim notifikasi awal:", err);
-      });
+      if (qrisImageUrl) {
+        void sendInvoiceWithQris({
+          phone: whatsapp,
+          message: waMessage,
+          qrisImageUrl,
+        }).catch((err) => {
+          console.error("[Checkout WA Error] Gagal kirim invoice + QRIS:", err);
+        });
+      } else {
+        void sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
+          console.error("[Checkout WA Error] Gagal kirim notifikasi invoice:", err);
+        });
+      }
     } catch (waError) {
       console.error("[Checkout WA Template Error]:", waError);
     }
@@ -263,6 +345,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       invoiceId,
       invoiceUrl,
       amount: finalPrice,
+      qrisImageUrl,
     };
   } catch (error: any) {
     console.error("[Checkout Server Exception]:", {
