@@ -27,7 +27,11 @@ function formatDateTime(value?: string | Date | null) {
 
 function formatRupiah(value: number | string) {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat("id-ID").format(amount);
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount);
 }
 
 function normalizeInvoice(value: string) {
@@ -72,6 +76,113 @@ function getOrderStatusLabel(status: string) {
   }
 }
 
+function getPaymentStatusColor(status: string) {
+  switch (status) {
+    case "PAID":
+    case "COMPLETED":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "FAILED":
+    case "CANCELLED":
+    case "EXPIRED":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "PENDING":
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+}
+
+function getOrderStatusColor(status: string) {
+  switch (status) {
+    case "SUCCESS":
+    case "COMPLETED":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "FAILED":
+    case "CANCELLED":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "PROCESSING":
+      return "border-blue-200 bg-blue-50 text-blue-700";
+    case "PENDING":
+    default:
+      return "border-slate-200 bg-slate-100 text-slate-600";
+  }
+}
+
+function getPaymentStatusIcon(status: string) {
+  switch (status) {
+    case "PAID":
+    case "COMPLETED":
+      return "ri-checkbox-circle-line";
+    case "FAILED":
+    case "CANCELLED":
+    case "EXPIRED":
+      return "ri-close-circle-line";
+    case "PENDING":
+    default:
+      return "ri-time-line";
+  }
+}
+
+function getOrderStatusIcon(status: string) {
+  switch (status) {
+    case "SUCCESS":
+    case "COMPLETED":
+      return "ri-check-double-line";
+    case "FAILED":
+    case "CANCELLED":
+      return "ri-error-warning-line";
+    case "PROCESSING":
+      return "ri-loader-4-line";
+    case "PENDING":
+    default:
+      return "ri-hourglass-line";
+  }
+}
+
+function buildTimeline(paymentStatus: string, orderStatus: string) {
+  const paid =
+    paymentStatus === "PAID" || paymentStatus === "COMPLETED";
+  const expired =
+    paymentStatus === "FAILED" ||
+    paymentStatus === "CANCELLED" ||
+    paymentStatus === "EXPIRED";
+  const processing = orderStatus === "PROCESSING";
+  const done = orderStatus === "SUCCESS" || orderStatus === "COMPLETED";
+  const failed = orderStatus === "FAILED" || orderStatus === "CANCELLED";
+
+  return [
+    {
+      title: "Invoice dibuat",
+      active: true,
+      done: true,
+      desc: "Pesanan berhasil tercatat di sistem.",
+    },
+    {
+      title: "Menunggu pembayaran",
+      active: !paid && !expired,
+      done: paid,
+      desc: expired
+        ? "Invoice tidak dapat diproses karena pembayaran tidak selesai tepat waktu."
+        : "Silakan selesaikan pembayaran agar pesanan diproses otomatis.",
+    },
+    {
+      title: "Pesanan diproses",
+      active: paid && processing,
+      done: done,
+      desc: failed
+        ? "Pesanan mengalami kendala saat diproses."
+        : "Sistem sedang meneruskan pesanan ke provider.",
+    },
+    {
+      title: "Pesanan selesai",
+      active: done,
+      done: done,
+      desc: done
+        ? "Pesanan telah berhasil diselesaikan."
+        : "Produk akan dikirim setelah proses selesai.",
+    },
+  ];
+}
+
 export default function CekPesananClient({
   initialInvoice,
   transactionData,
@@ -88,37 +199,6 @@ export default function CekPesananClient({
 
     setIsLoading(true);
     router.push(`/cek-pesanan?invoice=${encodeURIComponent(invoice)}`);
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case "PAID":
-      case "COMPLETED":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "FAILED":
-      case "CANCELLED":
-      case "EXPIRED":
-        return "bg-red-50 text-red-600 border-red-200";
-      case "PENDING":
-      default:
-        return "bg-amber-50 text-amber-600 border-amber-200";
-    }
-  };
-
-  const getOrderStatusColor = (status: string) => {
-    switch (status) {
-      case "SUCCESS":
-      case "COMPLETED":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "FAILED":
-      case "CANCELLED":
-        return "bg-red-50 text-red-600 border-red-200";
-      case "PROCESSING":
-        return "bg-blue-50 text-blue-600 border-blue-200";
-      case "PENDING":
-      default:
-        return "bg-slate-100 text-slate-500 border-slate-200";
-    }
   };
 
   const productDetails = useMemo(() => {
@@ -149,214 +229,385 @@ export default function CekPesananClient({
     String(productDetails?.target || "").trim() ||
     "-";
 
+  const customerPhone =
+    String(transactionData?.customerPhone || productDetails?.customerPhone || "").trim() || "-";
+
   const isPending = transactionData?.paymentStatus === "PENDING";
-  const isExpired = transactionData?.paymentStatus === "EXPIRED";
+  const isExpired =
+    transactionData?.paymentStatus === "EXPIRED" ||
+    transactionData?.paymentStatus === "FAILED" ||
+    transactionData?.paymentStatus === "CANCELLED";
   const isPaid =
     transactionData?.paymentStatus === "PAID" ||
     transactionData?.paymentStatus === "COMPLETED";
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-20 overflow-x-hidden">
-      <nav className="bg-white border-b border-slate-200/60 py-4 shadow-sm sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 bg-emerald-800 rounded-xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-              <i className="ri-arrow-left-line text-lg"></i>
-            </div>
-            <span className="font-black text-slate-900 ml-1">
-              Kembali ke Beranda
-            </span>
-          </Link>
-        </div>
-      </nav>
+  const timeline = buildTimeline(
+    String(transactionData?.paymentStatus || "PENDING"),
+    String(transactionData?.premifyStatus || "PENDING")
+  );
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-12 md:pt-16">
-        <div className="text-center mb-10 animate-fade-up">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-800 text-3xl mx-auto mb-4">
-            <i className="ri-search-eye-line"></i>
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-[#f7f6f2] font-sans text-slate-900 selection:bg-emerald-200 selection:text-emerald-950">
+      <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-[#f7f6f2]/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-emerald-200 hover:text-emerald-800"
+          >
+            <i className="ri-arrow-left-line text-base" />
+            <span className="hidden sm:inline">Kembali ke Beranda</span>
+            <span className="sm:hidden">Kembali</span>
+          </Link>
+
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-800">
+            <i className="ri-radar-line text-sm" />
+            Cek Pesanan
           </div>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-3">
-            Lacak Pesanan
-          </h1>
-          <p className="text-slate-500 font-medium">
-            Masukkan nomor Invoice Anda untuk melihat status pembayaran dan
-            pengiriman produk secara real-time.
-          </p>
         </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-12">
+        <section className="mb-8 md:mb-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
+              Tracking Invoice
+            </span>
+          </div>
+
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900 md:text-5xl">
+            Lacak status pesanan Anda
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-500 md:text-base">
+            Masukkan nomor invoice untuk melihat status pembayaran, proses pesanan,
+            dan detail transaksi terbaru secara lebih jelas.
+          </p>
+        </section>
 
         <form
           onSubmit={handleSearch}
-          className="relative group mb-12 animate-fade-up"
-          style={{ animationDelay: "0.1s" }}
+          className="mb-8 rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_16px_40px_rgba(15,23,42,0.05)]"
         >
-          <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-            <i className="ri-file-list-3-line text-slate-400 text-xl group-focus-within:text-emerald-800 transition-colors"></i>
-          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5 text-slate-400">
+                <i className="ri-file-list-3-line text-xl" />
+              </div>
 
-          <input
-            type="text"
-            value={invoiceInput}
-            onChange={(e) => setInvoiceInput(e.target.value.toUpperCase())}
-            placeholder="Contoh: INV-PS-260623-A1B2"
-            className="w-full pl-14 pr-32 py-5 bg-white border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-800 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.03)] font-bold text-sm md:text-base uppercase"
-          />
+              <input
+                type="text"
+                value={invoiceInput}
+                onChange={(e) => setInvoiceInput(e.target.value.toUpperCase())}
+                placeholder="Contoh: INV-PS-260623-A1B2"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-14 pr-4 text-sm font-bold uppercase text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 md:text-base"
+              />
+            </div>
 
-          <div className="absolute inset-y-2 right-2">
             <button
               type="submit"
               disabled={isLoading || !invoiceInput.trim()}
-              className="h-full bg-emerald-800 text-white px-6 rounded-xl font-bold text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-sm disabled:opacity-70 flex items-center gap-2"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-4 text-sm font-black text-white transition-all duration-300 hover:bg-emerald-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isLoading ? (
-                <i className="ri-loader-4-line animate-spin text-lg"></i>
+                <>
+                  <i className="ri-loader-4-line animate-spin text-lg" />
+                  Mencari...
+                </>
               ) : (
-                "Cari"
+                <>
+                  <i className="ri-search-line text-lg" />
+                  Cari Invoice
+                </>
               )}
             </button>
           </div>
         </form>
 
         {transactionData ? (
-          <div className="bg-white rounded-[32px] p-6 md:p-10 border border-slate-200/80 shadow-[0_20px_40px_rgba(0,0,0,0.04)] animate-fade-up relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full filter blur-[80px] opacity-60 pointer-events-none"></div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+            <section className="space-y-6 lg:col-span-8">
+              <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+                <div className="h-1 bg-gradient-to-r from-emerald-700 via-[#c8a24d] to-emerald-700" />
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 relative z-10 border-b border-slate-100 pb-6 gap-4">
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                  Nomor Invoice
-                </p>
-                <h2 className="text-xl md:text-2xl font-black text-slate-900 break-all">
-                  {transactionData.invoiceId}
-                </h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">
-                  {formatDateTime(transactionData.createdAt)} WIB
-                </p>
-              </div>
+                <div className="p-6 md:p-8">
+                  <div className="mb-6 flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Nomor Invoice
+                      </div>
+                      <h2 className="mt-2 break-all text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
+                        {transactionData.invoiceId}
+                      </h2>
+                      <p className="mt-2 text-sm font-medium text-slate-500">
+                        Dibuat pada {formatDateTime(transactionData.createdAt)} WIB
+                      </p>
+                    </div>
 
-              {transactionData.paymentExpiredAt && (
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Batas Pembayaran
-                  </p>
-                  <p className="text-sm font-bold text-slate-700">
-                    {formatDateTime(transactionData.paymentExpiredAt)} WIB
-                  </p>
-                </div>
-              )}
-            </div>
+                    {transactionData.paymentExpiredAt ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                          Batas Pembayaran
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-slate-800">
+                          {formatDateTime(transactionData.paymentExpiredAt)} WIB
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 relative z-10">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center text-center">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  Status Pembayaran
-                </p>
-                <span
-                  className={`px-4 py-1.5 rounded-full text-xs font-black border uppercase tracking-wider ${getPaymentStatusColor(
-                    transactionData.paymentStatus
-                  )}`}
-                >
-                  {getPaymentStatusLabel(transactionData.paymentStatus)}
-                </span>
-              </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+                      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Status Pembayaran
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${getPaymentStatusColor(
+                          transactionData.paymentStatus
+                        )}`}
+                      >
+                        <i className={getPaymentStatusIcon(transactionData.paymentStatus)} />
+                        {getPaymentStatusLabel(transactionData.paymentStatus)}
+                      </span>
+                    </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center text-center">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  Status Pengiriman
-                </p>
-                <span
-                  className={`px-4 py-1.5 rounded-full text-xs font-black border uppercase tracking-wider ${getOrderStatusColor(
-                    transactionData.premifyStatus
-                  )}`}
-                >
-                  {getOrderStatusLabel(transactionData.premifyStatus)}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl">
-              <div className="absolute bottom-0 right-0 w-32 h-32 bg-emerald-500 rounded-full filter blur-[60px] opacity-20 pointer-events-none"></div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">
-                    Nama Produk
-                  </p>
-                  <p className="font-bold text-lg break-words">{productName}</p>
-                </div>
-
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">
-                    ID Tujuan / Player ID
-                  </p>
-                  <p className="font-bold text-emerald-400 text-lg break-all">
-                    {targetId}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">
-                    Total Pembayaran
-                  </p>
-                  <p className="font-black text-2xl text-white">
-                    Rp {formatRupiah(transactionData.amount)}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">
-                    Order ID Vendor
-                  </p>
-                  <p className="font-bold text-slate-300 text-sm break-all select-all">
-                    {transactionData.premifyOrderId ||
-                      "Menunggu proses penyelesaian..."}
-                  </p>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+                      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Status Pesanan
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${getOrderStatusColor(
+                          transactionData.premifyStatus
+                        )}`}
+                      >
+                        <i
+                          className={`${getOrderStatusIcon(transactionData.premifyStatus)} ${
+                            transactionData.premifyStatus === "PROCESSING"
+                              ? "animate-spin"
+                              : ""
+                          }`}
+                        />
+                        {getOrderStatusLabel(transactionData.premifyStatus)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {isPending && (
-              <div className="mt-8 text-center relative z-10">
-                <p className="text-sm text-slate-500 mb-4 font-medium">
-                  Pembayaran belum diselesaikan. Detail pesanan telah kami
-                  amankan.
-                </p>
-                <p className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 px-5 py-2.5 rounded-xl text-xs font-bold border border-amber-200">
-                  <i className="ri-whatsapp-line text-lg"></i>
-                  Link QRIS pembayaran telah dikirim ke WhatsApp Anda.
-                </p>
-              </div>
-            )}
+              <div className="rounded-[32px] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.12)] md:p-8">
+                <div className="mb-6 flex items-center gap-3 border-b border-white/10 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
+                    <i className="ri-file-text-line" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black tracking-tight">Detail pesanan</h3>
+                    <p className="text-sm font-medium text-white/60">
+                      Informasi produk dan tujuan pengiriman.
+                    </p>
+                  </div>
+                </div>
 
-            {isExpired && (
-              <div className="mt-8 text-center relative z-10">
-                <p className="inline-flex items-center gap-2 bg-red-50 text-red-700 px-5 py-2.5 rounded-xl text-xs font-bold border border-red-200">
-                  <i className="ri-time-line text-lg"></i>
-                  Invoice ini sudah kedaluwarsa. Silakan lakukan checkout ulang.
-                </p>
-              </div>
-            )}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      Nama Produk
+                    </div>
+                    <div className="mt-2 text-base font-black leading-7 text-white">
+                      {productName}
+                    </div>
+                  </div>
 
-            {isPaid && (
-              <div className="mt-8 text-center relative z-10">
-                <p className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-5 py-2.5 rounded-xl text-xs font-bold border border-emerald-200">
-                  <i className="ri-checkbox-circle-line text-lg"></i>
-                  Pembayaran sudah diterima dan pesanan sedang / telah diproses.
-                </p>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      ID Tujuan / Player ID
+                    </div>
+                    <div className="mt-2 break-all text-base font-black text-emerald-300">
+                      {targetId}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      Total Pembayaran
+                    </div>
+                    <div className="mt-2 text-2xl font-black tracking-tight text-white">
+                      {formatRupiah(transactionData.amount)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      Nomor WhatsApp
+                    </div>
+                    <div className="mt-2 break-all text-base font-bold text-white/90">
+                      {customerPhone}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      Order ID Vendor
+                    </div>
+                    <div className="mt-2 break-all text-sm font-bold text-white/75">
+                      {transactionData.premifyOrderId || "Menunggu proses penyelesaian..."}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+
+              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)] md:p-8">
+                <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <i className="ri-route-line" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black tracking-tight text-slate-900">
+                      Progress pesanan
+                    </h3>
+                    <p className="text-sm font-medium text-slate-500">
+                      Tahapan pembayaran hingga penyelesaian pesanan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  {timeline.map((item, index) => (
+                    <div key={item.title} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-black ${
+                            item.done
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : item.active
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-slate-200 bg-slate-50 text-slate-400"
+                          }`}
+                        >
+                          {item.done ? <i className="ri-check-line" /> : index + 1}
+                        </div>
+                        {index < timeline.length - 1 ? (
+                          <div className="mt-2 h-full w-px bg-slate-200" />
+                        ) : null}
+                      </div>
+
+                      <div className="pb-5">
+                        <div className="text-sm font-black text-slate-900">
+                          {item.title}
+                        </div>
+                        <div className="mt-1 max-w-xl text-sm font-medium leading-6 text-slate-500">
+                          {item.desc}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <aside className="space-y-6 lg:col-span-4">
+              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white">
+                    <i className="ri-information-2-line" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black tracking-tight text-slate-900">
+                      Ringkasan
+                    </h3>
+                    <p className="text-sm font-medium text-slate-500">
+                      Status terbaru invoice Anda.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {isPending ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium leading-6 text-amber-800">
+                      <div className="mb-1 font-black">Menunggu pembayaran</div>
+                      Link QRIS pembayaran telah dikirim ke WhatsApp Anda. Selesaikan pembayaran sebelum invoice kedaluwarsa.
+                    </div>
+                  ) : null}
+
+                  {isExpired ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium leading-6 text-rose-800">
+                      <div className="mb-1 font-black">Invoice kedaluwarsa</div>
+                      Invoice ini sudah tidak dapat digunakan. Silakan lakukan checkout ulang untuk membuat pembayaran baru.
+                    </div>
+                  ) : null}
+
+                  {isPaid ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
+                      <div className="mb-1 font-black">Pembayaran diterima</div>
+                      Pembayaran Anda sudah masuk dan pesanan sedang atau telah diproses otomatis oleh sistem.
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3">
+                  <Link
+                    href="/"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-50"
+                  >
+                    <i className="ri-store-2-line" />
+                    Belanja Lagi
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
+                  >
+                    <i className="ri-refresh-line" />
+                    Refresh Status
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
+                <div className="mb-4 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Tips
+                </div>
+
+                <div className="space-y-3 text-sm font-medium leading-6 text-slate-600">
+                  <p>
+                    Gunakan nomor invoice yang sama seperti yang dikirim melalui halaman checkout atau WhatsApp.
+                  </p>
+                  <p>
+                    Untuk status pending, tunggu beberapa saat setelah pembayaran agar sistem selesai melakukan sinkronisasi.
+                  </p>
+                  <p>
+                    Jika pesanan belum masuk setelah pembayaran berhasil, simpan invoice ini sebagai referensi pengecekan.
+                  </p>
+                </div>
+              </div>
+            </aside>
           </div>
         ) : initialInvoice ? (
-          <div className="text-center py-16 bg-white border border-slate-200 rounded-[32px] shadow-sm animate-fade-up">
-            <i className="ri-file-search-line text-6xl text-slate-300 mb-4 block animate-bounce"></i>
-            <h3 className="text-xl font-black text-slate-900">
-              Invoice Tidak Ditemukan
+          <div className="rounded-[32px] border border-slate-200 bg-white px-6 py-14 text-center shadow-[0_20px_40px_rgba(15,23,42,0.04)]">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-4xl text-slate-400">
+              <i className="ri-file-search-line" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900">
+              Invoice tidak ditemukan
             </h3>
-            <p className="text-slate-500 mt-2 font-medium">
-              Pastikan nomor invoice yang Anda masukkan sudah benar.
+            <p className="mx-auto mt-3 max-w-lg text-sm font-medium leading-7 text-slate-500">
+              Pastikan nomor invoice yang Anda masukkan sudah benar, lalu coba lagi menggunakan format invoice yang sama.
             </p>
           </div>
-        ) : null}
-      </div>
+        ) : (
+          <div className="rounded-[32px] border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-3xl text-emerald-700">
+              <i className="ri-bill-line" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900">
+              Masukkan invoice terlebih dahulu
+            </h3>
+            <p className="mx-auto mt-3 max-w-lg text-sm font-medium leading-7 text-slate-500">
+              Anda bisa melacak pembayaran dan status pengiriman pesanan dengan nomor invoice yang valid.
+            </p>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
