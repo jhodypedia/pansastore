@@ -1,14 +1,24 @@
-// app/api/admin/wa/disconnect/route.ts
-import { disconnectWhatsAppBot } from "@/lib/whatsapp";
-import { waError, waSuccess } from "@/lib/wa-api-response";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { disconnectWhatsAppBot, getWhatsAppStatus } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  try {
-    await disconnectWhatsAppBot();
-    return waSuccess("WhatsApp socket disconnected without deleting session.");
-  } catch (error: any) {
-    return waError(error?.message || "Failed to disconnect WhatsApp socket.", 500);
+  const session = await auth();
+
+  if (!session?.user || String(session.user.role || "").toUpperCase() !== "ADMIN") {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized", ...getWhatsAppStatus() },
+      { status: 401 }
+    );
   }
+
+  await disconnectWhatsAppBot();
+
+  return NextResponse.json({
+    success: true,
+    message: "WhatsApp socket disconnected without deleting session.",
+    ...getWhatsAppStatus(),
+  });
 }
