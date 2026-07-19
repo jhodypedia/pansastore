@@ -32,6 +32,7 @@ declare global {
   var waLastError: string | undefined;
   var waRequestedPairingCode: boolean | undefined;
   var waStartOptions: StartWhatsAppOptions | undefined;
+  var waManualStop: boolean | undefined;
 }
 
 global.waStatus = global.waStatus || "DISCONNECTED";
@@ -43,13 +44,24 @@ global.waReconnectTimer = global.waReconnectTimer || null;
 global.waLastError = global.waLastError || "";
 global.waRequestedPairingCode = global.waRequestedPairingCode || false;
 global.waStartOptions = global.waStartOptions || undefined;
+global.waManualStop = global.waManualStop || false;
 
 const WA_AUTH_FOLDER = path.join(process.cwd(), "wa_auth_session");
 const RECONNECT_DELAY_MS = 5000;
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function setWAStatus(status: WAStatus, errorMessage?: string) {
   global.waStatus = status;
   global.waLastError = errorMessage || "";
+}
+
+function resetTransientState() {
+  global.waQrCode = "";
+  global.waPairingCode = "";
+  global.waRequestedPairingCode = false;
 }
 
 function clearReconnectTimer() {
@@ -60,6 +72,8 @@ function clearReconnectTimer() {
 }
 
 function scheduleReconnect() {
+  if (global.waManualStop) return;
+
   clearReconnectTimer();
 
   global.waReconnectTimer = setTimeout(() => {
@@ -96,6 +110,20 @@ async function removeAuthFolder() {
   }
 }
 
+async function closeExistingSocket(reason = "Reset existing socket") {
+  try {
+    if (global.waSocket) {
+      const socket = global.waSocket;
+      global.waSocket = null;
+      await socket.end?.(new Error(reason));
+    }
+  } catch (err) {
+    console.error("[WA] Failed closing previous socket:", err);
+  } finally {
+    resetTransientState();
+  }
+}
+
 export function getWhatsAppStatus() {
   return {
     status: global.waStatus || "DISCONNECTED",
@@ -107,21 +135,25 @@ export function getWhatsAppStatus() {
 }
 
 export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
-  if (
-    global.waIsStarting ||
-    global.waStatus === "CONNECTING" ||
-    global.waStatus === "CONNECTED"
-  ) {
+  global.waStartOptions = options;
+  global.waManualStop = false;
+  clearReconnectTimer();
+
+  if (global.waIsStarting) {
+    return getWhatsAppStatus();
+  }
+
+  if (global.waStatus === "CONNECTED" && global.waSocket && !options.usePairingCode) {
     return getWhatsAppStatus();
   }
 
   global.waIsStarting = true;
-  global.waRequestedPairingCode = false;
-  global.waStartOptions = options;
+  resetTransientState();
   setWAStatus("CONNECTING");
-  clearReconnectTimer();
 
   try {
+    await closeExistingSocket("Restarting WhatsApp socket");
+
     const { state, saveCreds } = await useMultiFileAuthState(WA_AUTH_FOLDER);
 
     const sock = makeWASocket({
@@ -149,7 +181,8 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
         if (
           options.usePairingCode &&
           !global.waRequestedPairingCode &&
-          !sock.authState?.creds?.registered
+          !sock.authState?.creds?.registered &&
+          (connection === "connecting" || !!qr)
         ) {
           const normalizedPairingPhone = normalizePhone(
             options.pairingPhoneNumber || ""
@@ -164,20 +197,27 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
             return;
           }
 
-          if (connection === "connecting" || !!qr) {
-            global.waRequestedPairingCode = true;
+          global.waRequestedPairingCode = true;
+
+          try {
+            await sleep(1500);
             const code = await sock.requestPairingCode(normalizedPairingPhone);
             global.waPairingCode = code;
             global.waQrCode = "";
             setWAStatus("PAIRING_CODE");
             console.log("[WA] Pairing code:", code);
+          } catch (pairErr: any) {
+            console.error("[WA] requestPairingCode failed:", pairErr);
+            global.waRequestedPairingCode = false;
+            setWAStatus(
+              "ERROR",
+              pairErr?.message || "Gagal membuat pairing code"
+            );
           }
         }
 
         if (connection === "open") {
-          global.waQrCode = "";
-          global.waPairingCode = "";
-          global.waRequestedPairingCode = false;
+          resetTransientState();
           setWAStatus("CONNECTED");
           global.waIsStarting = false;
           console.log("✅ WhatsApp berhasil terkoneksi.");
@@ -189,16 +229,22 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           const disconnectMessage =
             (lastDisconnect?.error as any)?.message || "Unknown disconnect";
 
+          const wasManualStop = global.waManualStop;
+
           global.waSocket = null;
-          global.waQrCode = "";
-          global.waPairingCode = "";
           global.waIsStarting = false;
-          global.waRequestedPairingCode = false;
+          resetTransientState();
 
           console.warn("[WA] Connection closed:", {
             statusCode,
             disconnectMessage,
+            wasManualStop,
           });
+
+          if (wasManualStop) {
+            setWAStatus("DISCONNECTED", "Disconnected manually");
+            return;
+          }
 
           if (statusCode === DisconnectReason.loggedOut) {
             setWAStatus("DISCONNECTED", "Logged out from WhatsApp");
@@ -262,13 +308,15 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
     return getWhatsAppStatus();
   } catch (error: any) {
     global.waSocket = null;
-    global.waQrCode = "";
-    global.waPairingCode = "";
-    global.waRequestedPairingCode = false;
     global.waIsStarting = false;
+    resetTransientState();
     setWAStatus("ERROR", error?.message || "Failed to start WhatsApp bot");
     console.error("[WA] Gagal start bot:", error);
-    scheduleReconnect();
+
+    if (!global.waManualStop) {
+      scheduleReconnect();
+    }
+
     return getWhatsAppStatus();
   } finally {
     global.waIsStarting = false;
@@ -276,37 +324,37 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
 }
 
 export async function disconnectWhatsAppBot(): Promise<void> {
+  global.waManualStop = true;
   clearReconnectTimer();
 
   try {
-    if (global.waSocket) {
-      await global.waSocket.end?.(new Error("Manual disconnect"));
-    }
+    await closeExistingSocket("Manual disconnect");
   } catch (err) {
     console.error("[WA] Error disconnect socket:", err);
   } finally {
     global.waSocket = null;
-    global.waQrCode = "";
-    global.waPairingCode = "";
-    global.waRequestedPairingCode = false;
+    global.waIsStarting = false;
+    resetTransientState();
     setWAStatus("DISCONNECTED");
   }
 }
 
 export async function logoutWhatsAppBot(): Promise<void> {
+  global.waManualStop = true;
   clearReconnectTimer();
 
   try {
     if (global.waSocket) {
-      await global.waSocket.logout();
+      const socket = global.waSocket;
+      global.waSocket = null;
+      await socket.logout();
     }
   } catch (err) {
     console.error("[WA] Error logout socket:", err);
   } finally {
     global.waSocket = null;
-    global.waQrCode = "";
-    global.waPairingCode = "";
-    global.waRequestedPairingCode = false;
+    global.waIsStarting = false;
+    resetTransientState();
     await removeAuthFolder();
     setWAStatus("DISCONNECTED");
   }
@@ -375,9 +423,11 @@ export async function sendWhatsAppImage(params: {
   const jid = `${normalizedPhone}@s.whatsapp.net`;
 
   try {
-    const payload: any = {
-      caption: sanitizeMessage(params.caption || ""),
-    };
+    const payload: any = {};
+
+    if (params.caption) {
+      payload.caption = sanitizeMessage(params.caption);
+    }
 
     if (params.imageBuffer) {
       payload.image = params.imageBuffer;
