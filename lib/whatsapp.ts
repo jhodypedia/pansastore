@@ -1,3 +1,4 @@
+// lib/whatsapp.ts
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -7,7 +8,7 @@ import { Boom } from "@hapi/boom";
 import path from "path";
 import fs from "fs/promises";
 
-type WAStatus =
+export type WAStatus =
   | "DISCONNECTED"
   | "CONNECTING"
   | "QR_READY"
@@ -41,7 +42,7 @@ global.waIsStarting = global.waIsStarting || false;
 global.waReconnectTimer = global.waReconnectTimer || null;
 global.waLastError = global.waLastError || "";
 global.waRequestedPairingCode = global.waRequestedPairingCode || false;
-global.waStartOptions = global.waStartOptions || {};
+global.waStartOptions = global.waStartOptions || undefined;
 
 const WA_AUTH_FOLDER = path.join(process.cwd(), "wa_auth_session");
 const RECONNECT_DELAY_MS = 5000;
@@ -97,7 +98,7 @@ async function removeAuthFolder() {
 
 export function getWhatsAppStatus() {
   return {
-    status: global.waStatus,
+    status: global.waStatus || "DISCONNECTED",
     qrCode: global.waQrCode || "",
     pairingCode: global.waPairingCode || "",
     connected: global.waStatus === "CONNECTED",
@@ -111,12 +112,12 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
     global.waStatus === "CONNECTING" ||
     global.waStatus === "CONNECTED"
   ) {
-    return;
+    return getWhatsAppStatus();
   }
 
-  global.waStartOptions = options;
   global.waIsStarting = true;
   global.waRequestedPairingCode = false;
+  global.waStartOptions = options;
   setWAStatus("CONNECTING");
   clearReconnectTimer();
 
@@ -138,21 +139,21 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
     sock.ev.on("connection.update", async (update) => {
       try {
         const { connection, lastDisconnect, qr } = update;
-        const { usePairingCode = false, pairingPhoneNumber } =
-          global.waStartOptions || {};
 
-        if (qr && !usePairingCode) {
+        if (qr && !options.usePairingCode) {
           global.waQrCode = qr;
           global.waPairingCode = "";
           setWAStatus("QR_READY");
         }
 
         if (
-          usePairingCode &&
+          options.usePairingCode &&
           !global.waRequestedPairingCode &&
           !sock.authState?.creds?.registered
         ) {
-          const normalizedPairingPhone = normalizePhone(pairingPhoneNumber || "");
+          const normalizedPairingPhone = normalizePhone(
+            options.pairingPhoneNumber || ""
+          );
 
           if (!normalizedPairingPhone) {
             setWAStatus(
@@ -166,7 +167,6 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           if (connection === "connecting" || !!qr) {
             global.waRequestedPairingCode = true;
             const code = await sock.requestPairingCode(normalizedPairingPhone);
-
             global.waPairingCode = code;
             global.waQrCode = "";
             setWAStatus("PAIRING_CODE");
@@ -180,7 +180,7 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           global.waRequestedPairingCode = false;
           setWAStatus("CONNECTED");
           global.waIsStarting = false;
-          console.log("✅ WhatsApp PansaStore berhasil terkoneksi.");
+          console.log("✅ WhatsApp berhasil terkoneksi.");
           return;
         }
 
@@ -233,6 +233,33 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
         global.waIsStarting = false;
       }
     });
+
+    sock.ev.on("messages.upsert", async (m) => {
+      try {
+        const msg = m.messages?.[0];
+        if (!msg?.message || msg.key?.fromMe) return;
+
+        const sender = msg.key.remoteJid;
+        if (!sender) return;
+
+        const text =
+          msg.message.conversation ||
+          msg.message.extendedTextMessage?.text ||
+          "";
+
+        const normalizedText = text.trim().toLowerCase();
+
+        if (normalizedText === "ping") {
+          await sock.sendMessage(sender, {
+            text: "PansaStore aktif dan berjalan normal.",
+          });
+        }
+      } catch (err) {
+        console.error("[WA] Error processing incoming message:", err);
+      }
+    });
+
+    return getWhatsAppStatus();
   } catch (error: any) {
     global.waSocket = null;
     global.waQrCode = "";
@@ -242,6 +269,7 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
     setWAStatus("ERROR", error?.message || "Failed to start WhatsApp bot");
     console.error("[WA] Gagal start bot:", error);
     scheduleReconnect();
+    return getWhatsAppStatus();
   } finally {
     global.waIsStarting = false;
   }
@@ -369,6 +397,23 @@ export async function sendWhatsAppImage(params: {
   }
 }
 
+export async function sendInvoiceWithQris(params: {
+  phone: string;
+  message: string;
+  qrisImageUrl: string;
+}): Promise<boolean> {
+  const textSent = await sendWhatsAppMessage(params.phone, params.message);
+  if (!textSent) return false;
+
+  const imageSent = await sendWhatsAppImage({
+    phone: params.phone,
+    imageUrl: params.qrisImageUrl,
+    caption: "Silakan scan QRIS berikut untuk melakukan pembayaran.",
+  });
+
+  return imageSent;
+}
+
 function formatRupiah(amount: number | string) {
   const value = Number(amount || 0);
   return new Intl.NumberFormat("id-ID").format(value);
@@ -379,10 +424,6 @@ function safeText(value: unknown, fallback = "-") {
   return text || fallback;
 }
 
-function sanitizeTemplateLine(value?: string) {
-  return value ? String(value).trim() : "";
-}
-
 export const WATemplates = {
   invoiceCreated: ({
     invoiceId,
@@ -390,14 +431,12 @@ export const WATemplates = {
     targetId,
     price,
     paymentUrl,
-    expiredAt,
   }: {
     invoiceId: string;
     productName: string;
     targetId: string;
     price: number | string;
     paymentUrl: string;
-    expiredAt?: string;
   }) => `
 *PansaStore*
 _Notifikasi Invoice_
@@ -410,12 +449,11 @@ Terima kasih. Pesanan Anda sudah kami terima dengan rincian berikut:
 • Tujuan: *${safeText(targetId)}*
 • Total Pembayaran: *Rp ${formatRupiah(price)}*
 • Status: *Menunggu Pembayaran*
-${expiredAt ? `• Expired: *${safeText(expiredAt)}*` : ""}
 
-*Tautan cek pesanan:*
+*Tautan pembayaran:*
 ${safeText(paymentUrl)}
 
-Silakan selesaikan pembayaran sebelum invoice kedaluwarsa. QRIS pembayaran akan dikirim setelah pesan ini.
+Silakan selesaikan pembayaran sebelum tautan kedaluwarsa. Anda juga dapat scan QRIS yang kami kirim setelah pesan ini. Setelah pembayaran berhasil dikonfirmasi, pesanan akan diproses otomatis oleh sistem.
 
 Terima kasih.
 _PansaStore_
@@ -438,7 +476,9 @@ Pembayaran untuk pesanan berikut sudah berhasil kami terima:
 • Produk: *${safeText(productName)}*
 • Status: *Sedang Diproses*
 
-Pesanan Anda saat ini sedang diteruskan ke sistem provider.
+Pesanan Anda saat ini sedang diteruskan ke sistem provider. Estimasi proses sekitar *1–3 menit*.
+
+Mohon menunggu. Kami akan mengirim pembaruan lagi setelah proses selesai.
 
 Terima kasih.
 _PansaStore_
@@ -467,10 +507,12 @@ Pesanan Anda telah berhasil diproses.
 • Status: *Berhasil*
 
 ${
-  sanitizeTemplateLine(accountDetails)
-    ? `*Detail akun / kredensial:*\n${sanitizeMessage(accountDetails!)}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
+  accountDetails
+    ? `*Detail akun / kredensial:*\n${sanitizeMessage(accountDetails)}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
     : `Produk telah aktif dan siap digunakan. Silakan lakukan pengecekan pada akun tujuan Anda.`
 }
+
+Apabila produk belum diterima dalam *10 menit*, balas pesan ini agar tim kami dapat membantu pengecekan lebih lanjut.
 
 Terima kasih atas kepercayaan Anda.
 _PansaStore_
@@ -493,7 +535,12 @@ Pesanan berikut sedang mengalami kendala saat diproses:
 • Produk: *${safeText(productName || "Produk Digital")}*
 • Status: *Terkendala*
 
-Tim kami akan melakukan pengecekan lanjutan.
+Kemungkinan penyebab:
+• Data tujuan tidak valid
+• Stok provider sedang tidak tersedia
+• Sistem provider sedang mengalami gangguan
+
+Tim kami akan melakukan pengecekan lanjutan. Jika dalam *15 menit* belum ada pembaruan, silakan balas pesan ini.
 
 Mohon maaf atas ketidaknyamanannya.
 _PansaStore_
@@ -507,16 +554,16 @@ _PansaStore_
     productName?: string;
   }) => `
 *PansaStore*
-_Pembayaran Tidak Berhasil / Kedaluwarsa_
+_Pembayaran Tidak Berhasil_
 
 Halo,
-Pembayaran untuk pesanan berikut belum berhasil kami konfirmasi atau telah melewati batas waktu pembayaran:
+Pembayaran untuk pesanan berikut belum berhasil kami konfirmasi:
 
 • Invoice: *${safeText(invoiceId)}*
 • Produk: *${safeText(productName || "Produk Digital")}*
-• Status: *Expired / Gagal*
+• Status: *Belum Berhasil*
 
-Silakan buat pesanan baru jika masih ingin melanjutkan pembelian.
+Silakan coba lakukan pembayaran kembali menggunakan tautan atau metode yang tersedia. Jika Anda merasa pembayaran sudah dilakukan tetapi status belum berubah, balas pesan ini untuk pengecekan manual.
 
 Terima kasih.
 _PansaStore_
