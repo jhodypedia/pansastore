@@ -29,6 +29,8 @@ type PaymentData = {
   fee: number;
   payment_number: string;
   expired_at: string;
+  qris_image_url?: string | null;
+  qr_string?: string | null;
 };
 
 type CheckoutSuccessResult = {
@@ -38,6 +40,7 @@ type CheckoutSuccessResult = {
   invoiceId: string;
   invoiceUrl: string;
   amount: number;
+  qrisImageUrl?: string | null;
 };
 
 type CheckoutErrorResult = {
@@ -60,6 +63,14 @@ interface CheckoutClientProps {
 type FieldErrors = {
   targetId?: string;
   whatsapp?: string;
+};
+
+type InvoiceViewData = {
+  payment: PaymentData;
+  invoiceId: string;
+  invoiceUrl: string;
+  amount: number;
+  qrisImageUrl?: string | null;
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -97,7 +108,9 @@ function ProductVisual({
   return (
     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-700 via-emerald-800 to-slate-900 text-white">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 backdrop-blur-sm">
-        <i className={`${isInviteType ? "ri-mail-star-fill" : "ri-key-2-fill"} text-2xl`} />
+        <i
+          className={`${isInviteType ? "ri-mail-star-fill" : "ri-key-2-fill"} text-2xl`}
+        />
       </div>
     </div>
   );
@@ -113,9 +126,10 @@ export default function CheckoutClient({
 }: CheckoutClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [invoiceData, setInvoiceData] = useState<PaymentData | null>(null);
+  const [invoiceData, setInvoiceData] = useState<InvoiceViewData | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formMessage, setFormMessage] = useState<string>("");
+
   const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
   const targetInputRef = useRef<HTMLInputElement | null>(null);
@@ -133,6 +147,16 @@ export default function CheckoutClient({
   const [whatsapp, setWhatsapp] = useState(sanitizePhone(defaultPhone));
 
   useEffect(() => {
+    if (isInviteType) {
+      setTargetId(defaultEmail || "");
+    }
+  }, [defaultEmail, isInviteType]);
+
+  useEffect(() => {
+    setWhatsapp(sanitizePhone(defaultPhone));
+  }, [defaultPhone]);
+
+  useEffect(() => {
     return () => {
       if (stepIntervalRef.current) {
         clearInterval(stepIntervalRef.current);
@@ -145,7 +169,7 @@ export default function CheckoutClient({
     setLoadingStep(1);
 
     stepIntervalRef.current = setInterval(() => {
-      setLoadingStep((prev) => (prev < 4 ? prev + 1 : prev));
+      setLoadingStep((prev) => (prev < CHECKOUT_STEPS.length ? prev + 1 : prev));
     }, 900);
   };
 
@@ -161,27 +185,28 @@ export default function CheckoutClient({
       targetInputRef.current?.focus();
       return;
     }
+
     if (nextErrors.whatsapp) {
       whatsappInputRef.current?.focus();
     }
+  };
+
+  const clearFieldError = (field: keyof FieldErrors) => {
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const handleWhatsappChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextValue = sanitizePhone(e.target.value);
     setWhatsapp(nextValue);
 
-    if (errors.whatsapp) {
-      setErrors((prev) => ({ ...prev, whatsapp: undefined }));
-    }
+    if (errors.whatsapp) clearFieldError("whatsapp");
     if (formMessage) setFormMessage("");
   };
 
   const handleTargetIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTargetId(e.target.value);
 
-    if (errors.targetId) {
-      setErrors((prev) => ({ ...prev, targetId: undefined }));
-    }
+    if (errors.targetId) clearFieldError("targetId");
     if (formMessage) setFormMessage("");
   };
 
@@ -211,14 +236,17 @@ export default function CheckoutClient({
   };
 
   useEffect(() => {
-    if (Object.keys(errors).length > 0 && errorSummaryRef.current) {
+    if (Object.keys(errors).some((key) => Boolean(errors[key as keyof FieldErrors])) && errorSummaryRef.current) {
       errorSummaryRef.current.focus();
     }
   }, [errors]);
 
   const getButtonLabel = () => {
     if (!isLoading) return "Lanjut ke Pembayaran";
-    return CHECKOUT_STEPS[Math.max(0, Math.min(loadingStep - 1, CHECKOUT_STEPS.length - 1))];
+
+    return CHECKOUT_STEPS[
+      Math.max(0, Math.min(loadingStep - 1, CHECKOUT_STEPS.length - 1))
+    ];
   };
 
   const handleCheckout = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -227,6 +255,7 @@ export default function CheckoutClient({
     if (isLoading) return;
 
     const validationErrors = validateFields();
+
     if (Object.keys(validationErrors).length > 0) {
       setFormMessage("Periksa kembali kolom yang masih bermasalah.");
       toast.error("Data belum lengkap.");
@@ -237,12 +266,17 @@ export default function CheckoutClient({
     const finalTargetId = isInviteType ? targetId.trim() : whatsapp.trim();
 
     setFormMessage("");
+    setErrors({});
     setIsLoading(true);
     startLoadingSteps();
 
     const formData = new FormData();
     formData.append("productId", product.id);
-    if (normalizedVariantId) formData.append("variantId", normalizedVariantId);
+
+    if (normalizedVariantId) {
+      formData.append("variantId", normalizedVariantId);
+    }
+
     formData.append("targetId", finalTargetId);
     formData.append("whatsapp", whatsapp.trim());
     formData.append("method", "qris");
@@ -260,13 +294,21 @@ export default function CheckoutClient({
             fee: Number(res.payment.fee),
             payment_number: String(res.payment.payment_number),
             expired_at: String(res.payment.expired_at),
+            qris_image_url: res.payment.qris_image_url || res.qrisImageUrl || null,
+            qr_string: res.payment.qr_string || null,
           };
 
-          setLoadingStep(4);
+          setLoadingStep(CHECKOUT_STEPS.length);
           toast.success("Invoice berhasil dibuat.");
 
           setTimeout(() => {
-            setInvoiceData(normalizedPayment);
+            setInvoiceData({
+              payment: normalizedPayment,
+              invoiceId: res.invoiceId,
+              invoiceUrl: res.invoiceUrl,
+              amount: Number(res.amount || normalizedPayment.total_payment || price),
+              qrisImageUrl: res.qrisImageUrl || normalizedPayment.qris_image_url || null,
+            });
             setIsLoading(false);
           }, 450);
 
@@ -274,6 +316,7 @@ export default function CheckoutClient({
         }
 
         toast.success("Invoice aktif ditemukan.");
+
         if (res.invoiceUrl) {
           window.location.href = res.invoiceUrl;
           return;
@@ -308,7 +351,7 @@ export default function CheckoutClient({
   if (invoiceData) {
     return (
       <div
-        className={`${fontSans.variable} min-h-screen bg-[#f7f6f2] text-[#1f2937] font-sans selection:bg-emerald-200 selection:text-emerald-950`}
+        className={`${fontSans.variable} min-h-screen bg-[#f7f6f2] font-sans text-[#1f2937] selection:bg-emerald-200 selection:text-emerald-950`}
       >
         <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#f7f6f2]/90 backdrop-blur-xl">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
@@ -328,7 +371,13 @@ export default function CheckoutClient({
         </header>
 
         <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-12">
-          <QRISInvoice paymentData={invoiceData} />
+          <QRISInvoice
+            paymentData={invoiceData.payment}
+            invoiceId={invoiceData.invoiceId}
+            invoiceUrl={invoiceData.invoiceUrl}
+            amount={invoiceData.amount}
+            qrisImageUrl={invoiceData.qrisImageUrl || undefined}
+          />
         </main>
       </div>
     );
@@ -338,7 +387,7 @@ export default function CheckoutClient({
 
   return (
     <div
-      className={`${fontSans.variable} min-h-screen bg-[#f7f6f2] text-[#111827] font-sans selection:bg-emerald-200 selection:text-emerald-950`}
+      className={`${fontSans.variable} min-h-screen bg-[#f7f6f2] font-sans text-[#111827] selection:bg-emerald-200 selection:text-emerald-950`}
     >
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#f7f6f2]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
@@ -372,8 +421,9 @@ export default function CheckoutClient({
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-500 md:text-base">
-            Lengkapi detail pesanan dan lanjutkan ke pembayaran QRIS. Tampilan dibuat lebih nyaman
-            untuk mobile, tetap jelas saat discroll, dan ringkasan pembayaran selalu mudah dipantau.
+            Lengkapi detail pesanan dan lanjutkan ke pembayaran QRIS. Tampilan dibuat
+            lebih nyaman untuk mobile, tetap jelas saat discroll, dan ringkasan
+            pembayaran selalu mudah dipantau.
           </p>
         </section>
 
@@ -397,7 +447,8 @@ export default function CheckoutClient({
                   <div>
                     <h2 className="text-sm font-black text-rose-900">Perlu diperbaiki</h2>
                     <p className="mt-1 text-sm font-medium leading-6 text-rose-800">
-                      {formMessage || "Masih ada data yang belum valid. Periksa kolom di bawah ini."}
+                      {formMessage ||
+                        "Masih ada data yang belum valid. Periksa kolom di bawah ini."}
                     </p>
                   </div>
                 </div>
@@ -412,7 +463,9 @@ export default function CheckoutClient({
                     1
                   </div>
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-slate-900">Detail produk</h2>
+                    <h2 className="text-lg font-black tracking-tight text-slate-900">
+                      Detail produk
+                    </h2>
                     <p className="text-sm font-medium text-slate-500">
                       Ringkasan item yang akan dibayar.
                     </p>
@@ -421,7 +474,7 @@ export default function CheckoutClient({
 
                 <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50">
                   <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr]">
-                    <div className="relative h-40 sm:h-full min-h-[120px] overflow-hidden">
+                    <div className="relative h-40 min-h-[120px] overflow-hidden sm:h-full">
                       <ProductVisual product={product} isInviteType={isInviteType} />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 to-transparent" />
                     </div>
@@ -466,7 +519,9 @@ export default function CheckoutClient({
                     2
                   </div>
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-slate-900">Tujuan pengiriman</h2>
+                    <h2 className="text-lg font-black tracking-tight text-slate-900">
+                      Tujuan pengiriman
+                    </h2>
                     <p className="text-sm font-medium text-slate-500">
                       Masukkan email tujuan untuk produk tipe invite.
                     </p>
@@ -534,8 +589,9 @@ export default function CheckoutClient({
 
                 <div className="space-y-3 text-sm font-medium leading-7 text-slate-600">
                   <p>
-                    Produk ini tidak memerlukan email tujuan tambahan. Setelah pembayaran selesai,
-                    detail produk atau akses akan dikirim ke nomor WhatsApp yang Anda masukkan.
+                    Produk ini tidak memerlukan email tujuan tambahan. Setelah pembayaran
+                    selesai, detail produk atau akses akan dikirim ke nomor WhatsApp yang
+                    Anda masukkan.
                   </p>
                   <p>
                     Tipe produk:{" "}
@@ -553,7 +609,9 @@ export default function CheckoutClient({
                   {isInviteType ? "3" : "2"}
                 </div>
                 <div>
-                  <h2 className="text-lg font-black tracking-tight text-slate-900">Kontak WhatsApp</h2>
+                  <h2 className="text-lg font-black tracking-tight text-slate-900">
+                    Kontak WhatsApp
+                  </h2>
                   <p className="text-sm font-medium text-slate-500">
                     Digunakan untuk invoice dan notifikasi pesanan.
                   </p>
@@ -622,7 +680,9 @@ export default function CheckoutClient({
                       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
                         Ringkasan
                       </p>
-                      <h2 className="mt-1 text-xl font-black tracking-tight">Pembayaran</h2>
+                      <h2 className="mt-1 text-xl font-black tracking-tight">
+                        Pembayaran
+                      </h2>
                     </div>
 
                     <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-300">
@@ -639,7 +699,9 @@ export default function CheckoutClient({
                       <div className="mt-1 text-base font-black leading-tight text-white">
                         {product.name}
                       </div>
-                      <div className="mt-1 text-sm font-semibold text-white/65">{variantName}</div>
+                      <div className="mt-1 text-sm font-semibold text-white/65">
+                        {variantName}
+                      </div>
                     </div>
 
                     <div className="flex items-end justify-between gap-4">
@@ -662,6 +724,7 @@ export default function CheckoutClient({
                   <div className="mt-5 space-y-2">
                     {CHECKOUT_STEPS.map((step, index) => {
                       const active = loadingStep >= index + 1;
+
                       return (
                         <div
                           key={step}
@@ -686,7 +749,7 @@ export default function CheckoutClient({
                 </div>
 
                 <div
-                  className="px-6 py-6 md:px-7 overscroll-contain"
+                  className="overscroll-contain px-6 py-6 md:px-7"
                   style={{ overscrollBehavior: "contain" }}
                 >
                   <div className="hidden lg:block">
@@ -730,8 +793,8 @@ export default function CheckoutClient({
                   <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-900">
                     <i className="ri-shield-check-line mt-0.5 text-base text-emerald-700" />
                     <p>
-                      Setelah invoice dibuat, Anda akan langsung masuk ke halaman QRIS untuk
-                      menyelesaikan pembayaran.
+                      Setelah invoice dibuat, Anda akan langsung masuk ke halaman QRIS
+                      untuk menyelesaikan pembayaran.
                     </p>
                   </div>
                 </div>
@@ -739,7 +802,7 @@ export default function CheckoutClient({
             </div>
           </aside>
 
-          <div className="order-3 lg:hidden sticky bottom-3 z-30">
+          <div className="sticky bottom-3 z-30 order-3 lg:hidden">
             <div className="rounded-[28px] border border-slate-200 bg-white/95 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between gap-3 px-2">
                 <div>
