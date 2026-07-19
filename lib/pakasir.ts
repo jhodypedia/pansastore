@@ -1,71 +1,127 @@
-interface PakasirQrisPayload {
+interface PakasirBasePayload {
   project: string;
   api_key: string;
   order_id: string;
   amount: number;
 }
 
-interface PakasirCheckPayload {
-  project: string;
-  api_key: string;
-  order_id: string;
-  amount: number;
-}
+export interface PakasirQrisPayload extends PakasirBasePayload {}
+export interface PakasirCheckPayload extends PakasirBasePayload {}
+export interface PakasirCancelPayload extends PakasirBasePayload {}
+
+export type PakasirApiResult<T = any> = {
+  ok: boolean;
+  status: number;
+  data: T;
+};
 
 const PAKASIR_BASE_URL = "https://app.pakasir.com/api";
+const DEFAULT_TIMEOUT_MS = 20_000;
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function parseJsonSafe(response: Response) {
+  const text = await response.text();
+
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return {
+      message: "Invalid JSON response from Pakasir",
+      raw: text,
+    };
+  }
+}
 
 export const pakasirSDK = {
-  /**
-   * Membuat transaksi QRIS baru
-   */
-  createQris: async (payload: PakasirQrisPayload) => {
+  async createQris(payload: PakasirQrisPayload): Promise<PakasirApiResult> {
     try {
-      const response = await fetch(`${PAKASIR_BASE_URL}/transactioncreate/qris`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetchWithTimeout(
+        `${PAKASIR_BASE_URL}/transactioncreate/qris`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
-      const data = await response.json();
-      return { ok: response.ok, data };
+      const data = await parseJsonSafe(response);
+      return { ok: response.ok, status: response.status, data };
     } catch (error) {
       console.error("[Pakasir SDK] Create QRIS Error:", error);
       throw error;
     }
   },
 
-  /**
-   * Mengecek detail transaksi (Bisa digunakan untuk Webhook Validation atau Polling)
-   *
-   * Catatan: endpoint transactiondetail Pakasir mewajibkan `amount` sebagai query
-   * param, sama seperti endpoint create/cancel lainnya. Tanpa amount, request bisa
-   * gagal atau salah menemukan transaksi (Pakasir tampaknya mengidentifikasi
-   * transaksi lewat kombinasi project + order_id + amount, bukan order_id saja).
-   */
-  checkTransaction: async (payload: PakasirCheckPayload) => {
+  async checkTransaction(
+    payload: PakasirCheckPayload
+  ): Promise<PakasirApiResult> {
     try {
-      // API Transaction Detail di Pakasir menggunakan method GET dengan query params
       const queryParams = new URLSearchParams({
         project: payload.project,
         api_key: payload.api_key,
         order_id: payload.order_id,
-        amount: payload.amount.toString(),
+        amount: String(payload.amount),
       }).toString();
 
-      const response = await fetch(`${PAKASIR_BASE_URL}/transactiondetail?${queryParams}`, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
-      });
+      const response = await fetchWithTimeout(
+        `${PAKASIR_BASE_URL}/transactiondetail?${queryParams}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
 
-      const data = await response.json();
-      return { ok: response.ok, data };
+      const data = await parseJsonSafe(response);
+      return { ok: response.ok, status: response.status, data };
     } catch (error) {
       console.error("[Pakasir SDK] Check Transaction Error:", error);
+      throw error;
+    }
+  },
+
+  async cancelTransaction(
+    payload: PakasirCancelPayload
+  ): Promise<PakasirApiResult> {
+    try {
+      const response = await fetchWithTimeout(
+        `${PAKASIR_BASE_URL}/transactioncancel`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await parseJsonSafe(response);
+      return { ok: response.ok, status: response.status, data };
+    } catch (error) {
+      console.error("[Pakasir SDK] Cancel Transaction Error:", error);
       throw error;
     }
   },
