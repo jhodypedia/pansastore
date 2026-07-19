@@ -1,3 +1,4 @@
+// app/admin/wa-settings/page.tsx
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -308,6 +309,8 @@ export default function WASettingsPage() {
           throw new Error(data?.message || "Aksi gagal diproses.");
         }
 
+        if (!mountedRef.current) return;
+
         applyStatus(data);
 
         setFeedback({
@@ -603,7 +606,7 @@ export default function WASettingsPage() {
                         : "bg-emerald-700 text-white shadow-[0_16px_35px_rgba(5,150,105,0.20)] hover:bg-emerald-600"
                     )}
                   >
-                    <i className={cn("ri-qr-code-line", isGeneratingQR ? "animate-spin ri-loader-4-line" : "")} />
+                    <i className={cn(isGeneratingQR ? "ri-loader-4-line animate-spin" : "ri-qr-code-line")} />
                     {isGeneratingQR ? "Generating..." : "Generate QR"}
                   </button>
                 </div>
