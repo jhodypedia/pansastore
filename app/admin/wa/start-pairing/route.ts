@@ -1,7 +1,6 @@
-// app/api/admin/wa/start-pairing/route.ts
-import { NextRequest } from "next/server";
-import { startWhatsAppBot } from "@/lib/whatsapp";
-import { waError, waSuccess } from "@/lib/wa-api-response";
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { startWhatsAppBot, getWhatsAppStatus } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -17,25 +16,37 @@ function normalizeInputPhone(phone: string): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json().catch(() => ({}));
-    const rawPhone = String((body as any)?.phone || "");
-    const phone = normalizeInputPhone(rawPhone);
+  const session = await auth();
 
-    if (!phone) {
-      return waError(
-        "Nomor WhatsApp tidak valid. Gunakan format Indonesia seperti 6281234567890.",
-        400
-      );
-    }
-
-    await startWhatsAppBot({
-      usePairingCode: true,
-      pairingPhoneNumber: phone,
-    });
-
-    return waSuccess("Pairing code generation started.");
-  } catch (error: any) {
-    return waError(error?.message || "Failed to start WhatsApp pairing connection.", 500);
+  if (!session?.user || String(session.user.role || "").toUpperCase() !== "ADMIN") {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized", ...getWhatsAppStatus() },
+      { status: 401 }
+    );
   }
+
+  const body = await req.json().catch(() => ({}));
+  const phone = normalizeInputPhone(String((body as any)?.phone || ""));
+
+  if (!phone) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Nomor WhatsApp tidak valid. Gunakan format Indonesia seperti 6281234567890.",
+        ...getWhatsAppStatus(),
+      },
+      { status: 400 }
+    );
+  }
+
+  const result = await startWhatsAppBot({
+    usePairingCode: true,
+    pairingPhoneNumber: phone,
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: "Pairing code generation started.",
+    ...result,
+  });
 }
