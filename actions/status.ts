@@ -41,11 +41,11 @@ export async function checkPaymentStatus(invoiceId: string) {
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
-          paymentStatus: "FAILED",
+          paymentStatus: "EXPIRED",
         },
       });
 
-      return "FAILED";
+      return "EXPIRED";
     }
 
     return transaction.paymentStatus || "PENDING";
