@@ -1,14 +1,24 @@
-// app/api/admin/wa/logout/route.ts
-import { logoutWhatsAppBot } from "@/lib/whatsapp";
-import { waError, waSuccess } from "@/lib/wa-api-response";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { logoutWhatsAppBot, getWhatsAppStatus } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  try {
-    await logoutWhatsAppBot();
-    return waSuccess("WhatsApp logged out and session reset.");
-  } catch (error: any) {
-    return waError(error?.message || "Failed to logout WhatsApp.", 500);
+  const session = await auth();
+
+  if (!session?.user || String(session.user.role || "").toUpperCase() !== "ADMIN") {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized", ...getWhatsAppStatus() },
+      { status: 401 }
+    );
   }
+
+  await logoutWhatsAppBot();
+
+  return NextResponse.json({
+    success: true,
+    message: "WhatsApp logged out and session reset.",
+    ...getWhatsAppStatus(),
+  });
 }
