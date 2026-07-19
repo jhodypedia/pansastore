@@ -18,6 +18,7 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   CANCELLED
+  EXPIRED
 }
 
 enum PremifyStatus {
@@ -85,17 +86,27 @@ model Variant {
 }
 
 model Transaction {
-  id             Int           @id @default(autoincrement())
-  invoiceId      String        @unique
-  premifyOrderId String?
-  productCode    String
-  customerPhone  String
-  amount         Float
-  paymentStatus  PaymentStatus @default(PENDING)
-  premifyStatus  PremifyStatus @default(PENDING)
-  productDetails String?       @db.Text
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id               Int           @id @default(autoincrement())
+  invoiceId        String        @unique
+  premifyOrderId   String?
+  productCode      String
+  customerPhone    String
+  amount           Float
+  paymentStatus    PaymentStatus @default(PENDING)
+  premifyStatus    PremifyStatus @default(PENDING)
+
+  paymentMethod    String?       @db.VarChar(50)
+  paymentReference String?       @db.Text
+  paymentExpiredAt DateTime?
+  paymentPaidAt    DateTime?
+  paymentPayload   String?       @db.LongText
+
+  productDetails   String?       @db.LongText
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@index([createdAt])
+  @@index([paymentStatus])
+  @@index([paymentExpiredAt])
+  @@index([customerPhone, productCode, paymentStatus])
 }
