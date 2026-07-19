@@ -1,17 +1,24 @@
-// app/api/admin/wa/start-qr/route.ts
-import { startWhatsAppBot } from "@/lib/whatsapp";
-import { waError, waSuccess } from "@/lib/wa-api-response";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { startWhatsAppBot, getWhatsAppStatus } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  try {
-    await startWhatsAppBot({
-      usePairingCode: false,
-    });
+  const session = await auth();
 
-    return waSuccess("QR generation started.");
-  } catch (error: any) {
-    return waError(error?.message || "Failed to start WhatsApp QR connection.", 500);
+  if (!session?.user || String(session.user.role || "").toUpperCase() !== "ADMIN") {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized", ...getWhatsAppStatus() },
+      { status: 401 }
+    );
   }
+
+  const result = await startWhatsAppBot({ usePairingCode: false });
+
+  return NextResponse.json({
+    success: true,
+    message: "QR generation started.",
+    ...result,
+  });
 }
