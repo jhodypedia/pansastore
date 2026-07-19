@@ -239,6 +239,33 @@ const VALUE_POINTS = [
   },
 ] as const;
 
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`skeleton shimmer ${className}`} />;
+}
+
+function ProductCardSkeleton() {
+  return (
+    <div className="rounded-[30px] border border-slate-200 bg-white overflow-hidden shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
+      <SkeletonBlock className="h-72 w-full" />
+      <div className="p-5 space-y-4">
+        <SkeletonBlock className="h-6 w-3/4 rounded-xl" />
+        <SkeletonBlock className="h-4 w-1/3 rounded-xl" />
+        <SkeletonBlock className="h-4 w-full rounded-xl" />
+        <SkeletonBlock className="h-4 w-5/6 rounded-xl" />
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <SkeletonBlock className="h-16 rounded-2xl" />
+          <SkeletonBlock className="h-16 rounded-2xl" />
+          <SkeletonBlock className="h-16 rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <SkeletonBlock className="h-12 rounded-2xl" />
+          <SkeletonBlock className="h-12 rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TrustBar() {
   return (
     <section className="py-12 md:py-16 bg-white border-y border-slate-100">
@@ -269,7 +296,7 @@ function TrustBar() {
 
 function PromoBanner() {
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+    <section id="promo" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
       <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-800 p-8 md:p-12 shadow-[0_30px_80px_-20px_rgba(6,78,59,0.45)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.14),transparent_26%)]" />
         <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl pointer-events-none animate-blob-float" />
@@ -319,7 +346,7 @@ function PromoBanner() {
 
 function TestimonialsSection() {
   return (
-    <section className="py-16 md:py-24 bg-slate-50 border-y border-slate-100">
+    <section id="testimoni" className="py-16 md:py-24 bg-slate-50 border-y border-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-10 md:mb-14">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 mb-4">
@@ -933,10 +960,10 @@ export default function StorefrontClient({
 }: StorefrontClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("SEMUA");
-  const [isScrolled, setIsScrolled] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [mouseGlow, setMouseGlow] = useState({ x: 50, y: 20 });
+  const [isBootLoading, setIsBootLoading] = useState(true);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const groupedProducts = useMemo(() => {
@@ -944,9 +971,11 @@ export default function StorefrontClient({
   }, [initialProducts]);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const timer = window.setTimeout(() => {
+      setIsBootLoading(false);
+    }, 900);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -972,7 +1001,7 @@ export default function StorefrontClient({
     });
 
     return () => observerRef.current?.disconnect();
-  }, [activeCategory, searchQuery, groupedProducts]);
+  }, [activeCategory, searchQuery, groupedProducts, isBootLoading]);
 
   const openProductDetail = (product: Product) => {
     setSelectedProduct(product);
@@ -1019,6 +1048,7 @@ export default function StorefrontClient({
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
         * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
         body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f8fafc; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1128,6 +1158,37 @@ export default function StorefrontClient({
         }
         .product-card-spotlight:hover::before { opacity: 1; }
 
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .skeleton {
+          background-color: #e5e7eb;
+        }
+        .shimmer {
+          background-image: linear-gradient(
+            90deg,
+            rgba(226,232,240,1) 0%,
+            rgba(248,250,252,1) 20%,
+            rgba(226,232,240,1) 40%,
+            rgba(226,232,240,1) 100%
+          );
+          background-size: 200% 100%;
+          animation: shimmer 1.6s linear infinite;
+        }
+
+        .top-progress {
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 3px;
+          width: var(--scroll-progress, 0%);
+          background: linear-gradient(90deg, #059669, #10b981, #facc15);
+          z-index: 70;
+          box-shadow: 0 0 16px rgba(16,185,129,.35);
+          transition: width .12s linear;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .animate-marquee,
           .animate-blob-float,
@@ -1140,7 +1201,8 @@ export default function StorefrontClient({
           .animate-fade-up,
           .animate-fade-up-delay,
           .animate-fade-up-delay2,
-          .animate-fade-up-delay3 {
+          .animate-fade-up-delay3,
+          .shimmer {
             animation: none !important;
           }
           .reveal-card,
@@ -1151,6 +1213,8 @@ export default function StorefrontClient({
         }
       `}</style>
 
+      <ScrollProgress />
+
       <div className="relative overflow-hidden bg-slate-50">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_48%)]" />
@@ -1158,13 +1222,7 @@ export default function StorefrontClient({
           <div className="absolute right-0 top-12 h-80 w-80 rounded-full bg-yellow-200/20 blur-3xl" />
         </div>
 
-        <header
-          className={`sticky top-0 z-40 transition-all duration-300 ${
-            isScrolled
-              ? "border-b border-slate-200/80 bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
-              : "bg-transparent"
-          }`}
-        >
+        <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex items-center justify-between py-4">
               <Link href="/" className="flex items-center gap-3">
@@ -1180,13 +1238,17 @@ export default function StorefrontClient({
               </Link>
 
               <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-2 py-2 backdrop-blur glass-edge">
-                {["Promo", "Populer", "Kategori", "Testimoni"].map((item) => (
+                {[
+                  { href: "#promo", label: "Promo" },
+                  { href: "#katalog", label: "Katalog" },
+                  { href: "#testimoni", label: "Testimoni" },
+                ].map((item) => (
                   <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
+                    key={item.label}
+                    href={item.href}
                     className="rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-800"
                   >
-                    {item}
+                    {item.label}
                   </a>
                 ))}
               </div>
@@ -1205,7 +1267,7 @@ export default function StorefrontClient({
         </header>
 
         <section
-          className="relative"
+          className="relative pt-28 md:pt-32"
           onMouseMove={(e) => {
             const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -1223,7 +1285,7 @@ export default function StorefrontClient({
               } as React.CSSProperties
             }
           />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 md:pt-16 pb-10 md:pb-16 relative z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-10 md:pb-16 relative z-10">
             <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-10 items-center">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-4 py-2 backdrop-blur glass-edge animate-fade-up">
@@ -1420,8 +1482,8 @@ export default function StorefrontClient({
               </div>
             </div>
 
-            <div className="sticky top-[76px] z-20 mb-8">
-              <div className="hide-scrollbar overflow-x-auto rounded-[26px] border border-slate-200 bg-white/85 p-2 backdrop-blur-xl shadow-[0_14px_35px_rgba(15,23,42,0.05)]">
+            <div className="sticky top-[84px] z-30 mb-8">
+              <div className="hide-scrollbar overflow-x-auto rounded-[26px] border border-slate-200 bg-white/88 p-2 backdrop-blur-xl shadow-[0_14px_35px_rgba(15,23,42,0.05)]">
                 <div className="flex w-max gap-2">
                   {categories.map((category) => {
                     const active = activeCategory === category;
@@ -1469,7 +1531,20 @@ export default function StorefrontClient({
               </div>
             </div>
 
-            {filteredProducts.length === 0 ? (
+            {isBootLoading ? (
+              <div className="space-y-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <SkeletonBlock key={i} className="h-24 rounded-3xl" />
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <ProductCardSkeleton key={i} />
+                  ))}
+                </div>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="rounded-[32px] border border-dashed border-slate-300 bg-white p-10 md:p-16 text-center shadow-sm">
                 <div className="mx-auto mb-5 h-20 w-20 rounded-[26px] bg-slate-100 flex items-center justify-center text-slate-400">
                   <i className="ri-search-eye-line text-4xl" />
@@ -1570,4 +1645,26 @@ export default function StorefrontClient({
       </div>
     </>
   );
+}
+
+function ScrollProgress() {
+  useEffect(() => {
+    const update = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? `${(scrollTop / docHeight) * 100}%` : "0%";
+      document.documentElement.style.setProperty("--scroll-progress", progress);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  return <div className="top-progress" aria-hidden="true" />;
 }
