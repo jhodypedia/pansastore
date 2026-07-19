@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getDashboardStats } from "@/actions/dashboard";
-import WaConnectionClient from "./WaConnectionClient";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +65,7 @@ export default async function AdminDashboard() {
             Sistem Operasional
           </h2>
           <p className="text-sm font-medium text-slate-500 mt-1">
-            Pantau performa PansaGroup secara real-time dari database dan status
-            koneksi WhatsApp.
+            Pantau performa PansaGroup secara real-time dari database dan akses modul operasional utama.
           </p>
         </div>
 
@@ -139,7 +137,7 @@ export default async function AdminDashboard() {
                 <i className="ri-whatsapp-fill text-xl"></i>
               </div>
               <span className="text-xs font-bold uppercase tracking-widest">
-                Bot Status
+                WhatsApp Bot
               </span>
             </div>
 
@@ -150,7 +148,13 @@ export default async function AdminDashboard() {
               Kelola
             </Link>
           </div>
-          <WaConnectionClient />
+
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Manual Control</h3>
+            <p className="text-sm font-medium text-slate-500 mt-1">
+              QR code dan status koneksi hanya diakses melalui halaman WA Settings.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -181,20 +185,14 @@ export default async function AdminDashboard() {
               <tbody className="divide-y divide-slate-100 font-medium">
                 {stats.latestTransactions.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-10 text-center text-slate-400"
-                    >
+                    <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
                       <i className="ri-inbox-archive-line text-4xl mb-2 block"></i>
                       Belum ada data transaksi di database.
                     </td>
                   </tr>
                 ) : (
                   stats.latestTransactions.map((tx: any) => (
-                    <tr
-                      key={tx.id}
-                      className="hover:bg-emerald-50/30 transition-colors"
-                    >
+                    <tr key={tx.id} className="hover:bg-emerald-50/30 transition-colors">
                       <td className="px-6 py-4 text-slate-500">
                         {formatDateTime(tx.createdAt)}
                       </td>
@@ -284,7 +282,7 @@ export default async function AdminDashboard() {
                   WA Settings
                 </div>
                 <div className="text-xs text-slate-500">
-                  Hubungkan bot via QR code atau pairing code.
+                  Generate QR dan pairing code hanya saat dibutuhkan.
                 </div>
               </div>
             </Link>
