@@ -49,6 +49,7 @@ global.waManualStop = global.waManualStop || false;
 
 const WA_AUTH_FOLDER = path.join(process.cwd(), "wa_auth_session");
 const RECONNECT_DELAY_MS = 5000;
+const PAIRING_REQUEST_DELAY_MS = 2500;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,9 +103,20 @@ function sanitizeMessage(message: string): string {
     .trim();
 }
 
+function hasText(value: unknown): boolean {
+  return String(value || "").trim().length > 0;
+}
+
+function formatPairingCode(code: string): string {
+  const clean = String(code || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+  if (!clean) return "";
+  return clean.match(/.{1,4}/g)?.join("-") || clean;
+}
+
 async function removeAuthFolder() {
   try {
     await fs.rm(WA_AUTH_FOLDER, { recursive: true, force: true });
+    console.log("[WA] Session folder removed.");
   } catch (err) {
     console.error("[WA] Gagal hapus folder session:", err);
   }
@@ -124,6 +136,50 @@ async function closeExistingSocket(reason = "Reset existing socket") {
   }
 }
 
+async function requestPairingCodeIfNeeded(sock: any, options: StartWhatsAppOptions) {
+  if (!options.usePairingCode) return;
+  if (global.waRequestedPairingCode) return;
+
+  const normalizedPairingPhone = normalizePhone(options.pairingPhoneNumber || "");
+
+  if (!normalizedPairingPhone) {
+    setWAStatus("ERROR", "Nomor pairing code tidak valid.");
+    return;
+  }
+
+  const isRegistered = Boolean(sock?.authState?.creds?.registered);
+  if (isRegistered) {
+    console.log("[WA] Pairing code dilewati karena device sudah registered.");
+    return;
+  }
+
+  global.waRequestedPairingCode = true;
+
+  try {
+    console.log("[WA] Meminta pairing code...", {
+      pairingPhoneNumber: normalizedPairingPhone,
+    });
+
+    await sleep(PAIRING_REQUEST_DELAY_MS);
+
+    const code = await sock.requestPairingCode(normalizedPairingPhone);
+    const formattedCode = formatPairingCode(code);
+
+    global.waPairingCode = formattedCode || code;
+    global.waQrCode = "";
+    setWAStatus("PAIRING_CODE");
+
+    console.log("[WA] Pairing code berhasil dibuat:", global.waPairingCode);
+  } catch (pairErr: any) {
+    global.waRequestedPairingCode = false;
+    console.error("[WA] requestPairingCode failed:", {
+      message: pairErr?.message,
+      stack: pairErr?.stack,
+    });
+    setWAStatus("ERROR", pairErr?.message || "Gagal membuat pairing code");
+  }
+}
+
 export function getWhatsAppStatus() {
   return {
     status: global.waStatus || "DISCONNECTED",
@@ -139,7 +195,9 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
   global.waManualStop = false;
   clearReconnectTimer();
 
-  if (global.waIsStarting) return getWhatsAppStatus();
+  if (global.waIsStarting) {
+    return getWhatsAppStatus();
+  }
 
   if (
     global.waStatus === "CONNECTED" &&
@@ -174,43 +232,21 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
       try {
         const { connection, lastDisconnect, qr } = update;
 
-        if (qr && !options.usePairingCode) {
+        console.log("[WA] connection.update:", {
+          connection,
+          hasQr: Boolean(qr),
+          usePairingCode: Boolean(options.usePairingCode),
+          registered: Boolean(sock?.authState?.creds?.registered),
+        });
+
+        if (options.usePairingCode) {
+          if (connection === "connecting" || !!qr) {
+            await requestPairingCodeIfNeeded(sock, options);
+          }
+        } else if (qr) {
           global.waQrCode = qr;
           global.waPairingCode = "";
           setWAStatus("QR_READY");
-        }
-
-        if (
-          options.usePairingCode &&
-          !global.waRequestedPairingCode &&
-          !sock.authState?.creds?.registered &&
-          (connection === "connecting" || !!qr)
-        ) {
-          const normalizedPairingPhone = normalizePhone(
-            options.pairingPhoneNumber || ""
-          );
-
-          if (!normalizedPairingPhone) {
-            setWAStatus("ERROR", "Nomor pairing code tidak valid.");
-            global.waIsStarting = false;
-            return;
-          }
-
-          global.waRequestedPairingCode = true;
-
-          try {
-            await sleep(1500);
-            const code = await sock.requestPairingCode(normalizedPairingPhone);
-            global.waPairingCode = code;
-            global.waQrCode = "";
-            setWAStatus("PAIRING_CODE");
-          } catch (pairErr: any) {
-            global.waRequestedPairingCode = false;
-            setWAStatus(
-              "ERROR",
-              pairErr?.message || "Gagal membuat pairing code"
-            );
-          }
         }
 
         if (connection === "open") {
@@ -231,6 +267,12 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           global.waIsStarting = false;
           resetTransientState();
 
+          console.warn("[WA] Connection closed:", {
+            statusCode,
+            disconnectMessage,
+            wasManualStop,
+          });
+
           if (wasManualStop) {
             setWAStatus("DISCONNECTED", "Disconnected manually");
             return;
@@ -246,6 +288,10 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           scheduleReconnect();
         }
       } catch (err: any) {
+        console.error("[WA] connection.update error:", {
+          message: err?.message,
+          stack: err?.stack,
+        });
         setWAStatus("ERROR", err?.message || "connection.update error");
         global.waIsStarting = false;
       }
@@ -281,6 +327,11 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
     global.waIsStarting = false;
     resetTransientState();
     setWAStatus("ERROR", error?.message || "Failed to start WhatsApp bot");
+
+    console.error("[WA] Gagal start bot:", {
+      message: error?.message,
+      stack: error?.stack,
+    });
 
     if (!global.waManualStop) {
       scheduleReconnect();
@@ -507,9 +558,9 @@ Pesanan Anda telah berhasil diproses.
 • Status: *Berhasil*
 
 ${
-  safeText(accountDetails, "")
+  hasText(accountDetails)
     ? `*Detail akun / kredensial:*\n${sanitizeMessage(
-        String(accountDetails)
+        String(accountDetails).trim()
       )}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
     : `Produk telah aktif dan siap digunakan. Silakan lakukan pengecekan pada akun tujuan Anda.`
 }
