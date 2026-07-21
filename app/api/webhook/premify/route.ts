@@ -17,6 +17,29 @@ type TransactionProductDetails = {
   error?: string;
   premifyCompletedAt?: string;
   premifyFailedAt?: string;
+  premifyReconciledAt?: string;
+  [key: string]: unknown;
+};
+
+type PremifyWebhookPayload = {
+  event?: string;
+  data?: {
+    order_id?: string;
+    order_number?: string;
+    status?: string;
+    payment_status?: string;
+    is_test?: boolean;
+    metadata?: {
+      is_test?: boolean;
+      [key: string]: unknown;
+    };
+    items?: Array<{
+      account_details?: string;
+      [key: string]: unknown;
+    }>;
+    account_details?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 };
 
@@ -52,6 +75,16 @@ async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getProductName(details: TransactionProductDetails) {
+  return (
+    [details.productName, details.variantName]
+      .filter(Boolean)
+      .join(" - ") ||
+    details.name ||
+    "Produk Digital"
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
@@ -66,11 +99,8 @@ export async function POST(req: Request) {
     }
 
     const settings = await prisma.appSetting.findFirst();
-
     const premifySecret =
-      process.env.PREMIFY_API_KEY ||
-      settings?.premifyApiKey ||
-      "";
+      process.env.PREMIFY_API_KEY || settings?.premifyApiKey || "";
 
     if (!premifySecret) {
       console.error("[Premify Webhook] Premify API key / secret belum dikonfigurasi.");
@@ -94,9 +124,9 @@ export async function POST(req: Request) {
       );
     }
 
-    let body: any;
+    let body: PremifyWebhookPayload;
     try {
-      body = JSON.parse(rawBody);
+      body = JSON.parse(rawBody) as PremifyWebhookPayload;
     } catch {
       return NextResponse.json(
         { success: false, message: "Invalid JSON payload" },
@@ -104,24 +134,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const { event, data } = body;
-
+    const event = String(body.event || "").trim().toLowerCase();
+    const data = body.data || {};
     const providerOrderId = String(
-      data?.order_id || data?.order_number || ""
+      data.order_id || data.order_number || ""
     ).trim();
-
-    const normalizedEvent = String(event || "").toLowerCase();
-    const normalizedProviderStatus = String(data?.status || "").toLowerCase();
 
     console.log("[Premify Webhook] Event diterima:", {
       event,
-      providerStatus: data?.status,
-      order_id: data?.order_id,
-      order_number: data?.order_number,
+      providerStatus: data.status,
+      order_id: data.order_id,
+      order_number: data.order_number,
       providerOrderId,
     });
 
-    if (!event || !data || !providerOrderId) {
+    if (!event || !providerOrderId) {
       console.error(
         "[Premify Webhook] Payload tidak valid: event/order_id/order_number tidak ditemukan.",
         body
@@ -141,10 +168,6 @@ export async function POST(req: Request) {
         { success: true, message: "Test event ignored" },
         { status: 200 }
       );
-    }
-
-    if (isTest && isDevelopment) {
-      console.log(`[Premify Webhook] Mode DEV: sandbox tetap diproses: ${providerOrderId}`);
     }
 
     let transaction: any = null;
@@ -169,7 +192,6 @@ export async function POST(req: Request) {
       console.warn(
         `[Premify Webhook] Transaksi untuk Premify order ${providerOrderId} tetap tidak ditemukan setelah retry.`
       );
-      console.warn("[Premify Webhook] Payload data:", data);
 
       return NextResponse.json(
         { success: true, message: "Transaction not found locally" },
@@ -182,38 +204,18 @@ export async function POST(req: Request) {
       {}
     );
 
+    const currentStatus = String(transaction.premifyStatus || "PENDING").toUpperCase();
     const customerWA = transaction.customerPhone;
-
-    const productName =
-      [productDetails.productName, productDetails.variantName]
-        .filter(Boolean)
-        .join(" - ") ||
-      productDetails.name ||
-      "Produk Digital";
-
+    const productName = getProductName(productDetails);
     const targetId = productDetails.targetId || "-";
 
-    const isCompletedEvent =
-      normalizedEvent === "order.completed" ||
-      normalizedProviderStatus === "completed" ||
-      normalizedProviderStatus === "success";
-
+    const isCompletedEvent = event === "order.completed";
     const isFailedEvent =
-      normalizedEvent === "order.failed" ||
-      normalizedEvent === "order.cancelled" ||
-      normalizedProviderStatus === "failed" ||
-      normalizedProviderStatus === "cancelled";
-
-    const isProcessingEvent =
-      !isCompletedEvent &&
-      !isFailedEvent &&
-      (
-        normalizedEvent === "order.processing" ||
-        normalizedProviderStatus === "processing"
-      );
+      event === "order.failed" || event === "order.cancelled";
+    const isProcessingEvent = event === "order.processing";
 
     if (isCompletedEvent) {
-      if (transaction.premifyStatus === "COMPLETED") {
+      if (currentStatus === "COMPLETED") {
         return NextResponse.json({
           success: true,
           message: "Already completed",
@@ -231,6 +233,8 @@ export async function POST(req: Request) {
         premifyCompletedAt: new Date().toISOString(),
       };
 
+      delete updatedDetails.error;
+
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
@@ -240,17 +244,18 @@ export async function POST(req: Request) {
         },
       });
 
-      const msg = WATemplates.orderCompleted({
-        invoiceId: transaction.invoiceId,
-        productName,
-        targetId,
-        accountDetails:
-          accountDetailsStr !== "Akses otomatis aktif."
-            ? accountDetailsStr
-            : undefined,
-      });
-
-      await sendWhatsAppMessage(customerWA, msg).catch((err) => {
+      await sendWhatsAppMessage(
+        customerWA,
+        WATemplates.orderCompleted({
+          invoiceId: transaction.invoiceId,
+          productName,
+          targetId,
+          accountDetails:
+            accountDetailsStr !== "Akses otomatis aktif."
+              ? accountDetailsStr
+              : undefined,
+        })
+      ).catch((err) => {
         console.error(
           `[Premify Webhook] Gagal kirim WA order completed ${transaction.invoiceId}:`,
           err
@@ -258,7 +263,7 @@ export async function POST(req: Request) {
       });
 
       console.log(
-        `[Premify Webhook] Pesanan ${transaction.invoiceId} selesai, notif WA terkirim.`
+        `[Premify Webhook] Pesanan ${transaction.invoiceId} selesai, notif WA diproses.`
       );
 
       return NextResponse.json({
@@ -268,15 +273,21 @@ export async function POST(req: Request) {
     }
 
     if (isFailedEvent) {
-      if (
-        transaction.premifyStatus === "FAILED" ||
-        transaction.premifyStatus === "CANCELLED"
-      ) {
+      if (currentStatus === "COMPLETED") {
+        return NextResponse.json({
+          success: true,
+          message: "Completed already, ignore failed/cancelled event",
+        });
+      }
+
+      if (currentStatus === "FAILED" || currentStatus === "CANCELLED") {
         return NextResponse.json({
           success: true,
           message: "Already failed/cancelled",
         });
       }
+
+      const nextStatus = event === "order.cancelled" ? "CANCELLED" : "FAILED";
 
       const updatedDetails: TransactionProductDetails = {
         ...productDetails,
@@ -287,11 +298,7 @@ export async function POST(req: Request) {
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
-          premifyStatus:
-            normalizedEvent === "order.cancelled" ||
-            normalizedProviderStatus === "cancelled"
-              ? "CANCELLED"
-              : "FAILED",
+          premifyStatus: nextStatus,
           productDetails: JSON.stringify(updatedDetails),
         },
       });
@@ -320,7 +327,12 @@ export async function POST(req: Request) {
     }
 
     if (isProcessingEvent) {
-      if (transaction.premifyStatus !== "PROCESSING") {
+      if (
+        currentStatus !== "COMPLETED" &&
+        currentStatus !== "FAILED" &&
+        currentStatus !== "CANCELLED" &&
+        currentStatus !== "PROCESSING"
+      ) {
         await prisma.transaction.update({
           where: { id: transaction.id },
           data: { premifyStatus: "PROCESSING" },
@@ -338,7 +350,7 @@ export async function POST(req: Request) {
     }
 
     console.log(
-      `[Premify Webhook] Event '${event}' dengan status '${data?.status}' untuk ${providerOrderId} tidak memerlukan aksi.`
+      `[Premify Webhook] Event '${event}' untuk ${providerOrderId} tidak memerlukan aksi.`
     );
 
     return NextResponse.json(
