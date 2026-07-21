@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { reconcilePremifyTransaction } from "@/lib/premify";
 
-export async function syncPremifyTransactionAction(formData: FormData) {
+// Tambahkan prevState sebagai parameter pertama
+export async function syncPremifyTransactionAction(
+  prevState: any,
+  formData: FormData
+) {
   const transactionId = Number(formData.get("transactionId"));
 
   if (!Number.isFinite(transactionId) || transactionId <= 0) {
