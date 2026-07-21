@@ -48,6 +48,10 @@ function verifyPremifySignature(
   return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
+async function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
@@ -102,11 +106,19 @@ export async function POST(req: Request) {
 
     const { event, data } = body;
 
-    console.log("[Premify Webhook] Event diterima:", event);
+    const providerOrderId = String(
+      data?.order_id || data?.order_number || ""
+    ).trim();
 
-    if (!event || !data || !data.order_number) {
+    console.log("[Premify Webhook] Event diterima:", event, {
+      order_id: data?.order_id,
+      order_number: data?.order_number,
+      providerOrderId,
+    });
+
+    if (!event || !data || !providerOrderId) {
       console.error(
-        "[Premify Webhook] Payload tidak valid: event/order_number tidak ditemukan.",
+        "[Premify Webhook] Payload tidak valid: event/order_id/order_number tidak ditemukan.",
         body
       );
       return NextResponse.json(
@@ -115,13 +127,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const orderNumber = String(data.order_number).trim();
-
     const isDevelopment = process.env.NODE_ENV === "development";
     const isTest = data.is_test === true || data.metadata?.is_test === true;
 
     if (isTest && !isDevelopment) {
-      console.log(`[Premify Webhook] Transaksi sandbox diabaikan: ${orderNumber}`);
+      console.log(`[Premify Webhook] Transaksi sandbox diabaikan: ${providerOrderId}`);
       return NextResponse.json(
         { success: true, message: "Test event ignored" },
         { status: 200 }
@@ -129,17 +139,35 @@ export async function POST(req: Request) {
     }
 
     if (isTest && isDevelopment) {
-      console.log(`[Premify Webhook] Mode DEV: sandbox tetap diproses: ${orderNumber}`);
+      console.log(`[Premify Webhook] Mode DEV: sandbox tetap diproses: ${providerOrderId}`);
     }
 
-    const transaction = await prisma.transaction.findFirst({
-      where: { premifyOrderId: orderNumber },
-    });
+    let transaction = null as Awaited<
+      ReturnType<typeof prisma.transaction.findUnique>
+    > | null;
+
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      transaction = await prisma.transaction.findUnique({
+        where: { premifyOrderId: providerOrderId },
+      });
+
+      if (transaction) break;
+
+      console.warn(
+        `[Premify Webhook] Attempt ${attempt}: transaksi untuk Premify order ${providerOrderId} belum ditemukan.`
+      );
+
+      if (attempt < 4) {
+        await wait(500);
+      }
+    }
 
     if (!transaction) {
       console.warn(
-        `[Premify Webhook] Transaksi untuk Premify order ${orderNumber} tidak ditemukan di database lokal.`
+        `[Premify Webhook] Transaksi untuk Premify order ${providerOrderId} tetap tidak ditemukan setelah retry.`
       );
+      console.warn("[Premify Webhook] Payload data:", data);
+
       return NextResponse.json(
         { success: true, message: "Transaction not found locally" },
         { status: 200 }
@@ -255,7 +283,7 @@ export async function POST(req: Request) {
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
-          premifyStatus: "FAILED",
+          premifyStatus: event === "order.cancelled" ? "CANCELLED" : "FAILED",
           productDetails: JSON.stringify(updatedDetails),
         },
       });
@@ -284,7 +312,7 @@ export async function POST(req: Request) {
     }
 
     console.log(
-      `[Premify Webhook] Event '${event}' untuk ${orderNumber} tidak memerlukan aksi.`
+      `[Premify Webhook] Event '${event}' untuk ${providerOrderId} tidak memerlukan aksi.`
     );
 
     return NextResponse.json(
