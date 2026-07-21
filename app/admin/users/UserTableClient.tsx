@@ -59,12 +59,13 @@ export default function UserTableClient({
       const formData = new FormData(e.currentTarget);
       const res = await addUser(formData);
 
-      if (!res.success) {
-        toast.error(res.message, { id: toastId });
+      if (!res.success || !("user" in res) || !res.user) {
+        toast.error(res.message || "Gagal menambah pengguna.", { id: toastId });
         return;
       }
 
-      setUsers((prev) => [res.user, ...prev]);
+      const createdUser: UserItem = res.user;
+      setUsers((prev) => [createdUser, ...prev]);
 
       toast.success(res.message, { id: toastId });
       formRef.current?.reset();
