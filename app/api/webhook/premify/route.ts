@@ -130,16 +130,6 @@ function resolveProviderOrderId(body: PremifyWebhookPayload): string {
   ).trim();
 }
 
-function resolveEventKey(body: PremifyWebhookPayload, providerOrderId: string): string {
-  const event = String(body?.event || "").trim().toLowerCase();
-  const status = String(body?.data?.status || "").trim().toLowerCase();
-  const paymentStatus = String(body?.data?.payment_status || "")
-    .trim()
-    .toLowerCase();
-
-  return [providerOrderId, event, status, paymentStatus].filter(Boolean).join(":");
-}
-
 async function findTransactionByPremifyOrder(providerOrderId: string) {
   let transaction: any = null;
 
@@ -298,7 +288,6 @@ export async function POST(req: Request) {
         .join(" - ") ||
       "Produk Digital";
     const targetId = String(productDetails.targetId || "-").trim() || "-";
-    const eventKey = resolveEventKey(body, providerOrderId);
 
     const baseUpdatedDetails: TransactionProductDetails = {
       ...productDetails,
@@ -340,7 +329,7 @@ export async function POST(req: Request) {
     if (isCompletedEvent) {
       if (currentStatus === "COMPLETED") {
         console.log(
-          `[Premify Webhook] Duplicate completed ignored untuk ${transaction.invoiceId} (${eventKey}).`
+          `[Premify Webhook] Duplicate completed diabaikan untuk invoice ${transaction.invoiceId}.`
         );
         return NextResponse.json({
           success: true,
@@ -385,7 +374,7 @@ export async function POST(req: Request) {
           })
         ).catch((err) => {
           console.error(
-            `[Premify Webhook] Gagal kirim WA order completed ${transaction.invoiceId}:`,
+            `[Premify Webhook] Gagal kirim WA completed ${transaction.invoiceId}:`,
             err
           );
         });
@@ -396,7 +385,7 @@ export async function POST(req: Request) {
       }
 
       console.log(
-        `[Premify Webhook] Pesanan ${transaction.invoiceId} selesai, notif WA diproses.`
+        `[Premify Webhook] Order ${transaction.invoiceId} berhasil diselesaikan dan notifikasi WA dikirim.`
       );
 
       return NextResponse.json({
@@ -407,9 +396,6 @@ export async function POST(req: Request) {
 
     if (isFailedEvent) {
       if (currentStatus === "COMPLETED") {
-        console.log(
-          `[Premify Webhook] Failed/cancelled diabaikan karena order ${transaction.invoiceId} sudah completed.`
-        );
         return NextResponse.json({
           success: true,
           message: "Completed already, ignore failed/cancelled event",
@@ -417,18 +403,16 @@ export async function POST(req: Request) {
       }
 
       if (currentStatus === "FAILED" || currentStatus === "CANCELLED") {
-        console.log(
-          `[Premify Webhook] Duplicate failed/cancelled ignored untuk ${transaction.invoiceId} (${eventKey}).`
-        );
         return NextResponse.json({
           success: true,
           message: "Already failed/cancelled",
         });
       }
 
-      const nextStatus = event === "order.cancelled" || providerStatus === "cancelled"
-        ? "CANCELLED"
-        : "FAILED";
+      const nextStatus =
+        event === "order.cancelled" || providerStatus === "cancelled"
+          ? "CANCELLED"
+          : "FAILED";
 
       const updatedDetails: TransactionProductDetails = {
         ...baseUpdatedDetails,
@@ -454,18 +438,14 @@ export async function POST(req: Request) {
           })
         ).catch((err) => {
           console.error(
-            `[Premify Webhook] Gagal kirim WA order failed ${transaction.invoiceId}:`,
+            `[Premify Webhook] Gagal kirim WA failed ${transaction.invoiceId}:`,
             err
           );
         });
-      } else {
-        console.warn(
-          `[Premify Webhook] Customer WA kosong untuk invoice ${transaction.invoiceId}, notif failed tidak dikirim.`
-        );
       }
 
       console.warn(
-        `[Premify Webhook] Pesanan ${transaction.invoiceId} gagal/dibatalkan oleh Premify.`
+        `[Premify Webhook] Order ${transaction.invoiceId} gagal/dibatalkan oleh Premify.`
       );
 
       return NextResponse.json({
