@@ -7,6 +7,33 @@ import { processPremifyOrder } from "@/lib/premify";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+type ProductDetailsShape = {
+  productId?: string | null;
+  productName?: string | null;
+  variantId?: string | null;
+  variantName?: string | null;
+  targetId?: string | null;
+  customerPhone?: string | null;
+  type?: string | null;
+  duration?: string | null;
+  warranty?: string | null;
+  qrisImageUrl?: string | null;
+  qris_image_url?: string | null;
+  qr_string?: string | null;
+  payment_number?: string | null;
+  expired_at?: string | null;
+  total_payment?: number | null;
+  fee?: number | null;
+  payment_provider?: string | null;
+  payment_provider_status?: string | null;
+  payment_created_at?: string | null;
+  payment_paid_at?: string | null;
+  payment_order_id?: string | null;
+  invoice_url?: string | null;
+  payment_payload?: unknown;
+  [key: string]: unknown;
+};
+
 function normalizeText(value: unknown): string {
   return String(value || "").trim();
 }
@@ -19,30 +46,32 @@ function normalizePaymentMethod(value: unknown): string {
   return normalizeText(value).toLowerCase();
 }
 
-function extractProductName(productDetails: string | null | undefined) {
-  try {
-    const parsed =
-      typeof productDetails === "string"
-        ? JSON.parse(productDetails)
-        : productDetails || {};
-
-    const productName = String(parsed?.productName || "").trim();
-    const variantName = String(parsed?.variantName || "").trim();
-    const fallbackName = String(parsed?.name || "").trim();
-
-    if (productName && variantName && productName !== variantName) {
-      return `${productName} - ${variantName}`;
-    }
-
-    return productName || variantName || fallbackName || "Produk Digital";
-  } catch {
-    return "Produk Digital";
-  }
-}
-
 function isFinitePositiveNumber(value: unknown) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0;
+}
+
+function safeJsonParse<T>(value: unknown, fallback: T): T {
+  try {
+    if (!value) return fallback;
+    if (typeof value === "string") return JSON.parse(value) as T;
+    if (typeof value === "object") return value as T;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function extractProductName(details: ProductDetailsShape) {
+  const productName = String(details?.productName || "").trim();
+  const variantName = String(details?.variantName || "").trim();
+  const fallbackName = String(details?.name || "").trim();
+
+  if (productName && variantName && productName !== variantName) {
+    return `${productName} - ${variantName}`;
+  }
+
+  return productName || variantName || fallbackName || "Produk Digital";
 }
 
 export async function POST(request: Request) {
@@ -50,10 +79,7 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
 
     if (!rawBody || !rawBody.trim()) {
-      return NextResponse.json(
-        { error: "Payload kosong" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Payload kosong" }, { status: 400 });
     }
 
     let body: any;
@@ -71,6 +97,14 @@ export async function POST(request: Request) {
     const project = normalizeText(body?.project);
     const paymentMethod = normalizePaymentMethod(body?.payment_method);
     const webhookAmount = body?.amount;
+
+    console.log("[PAKASIR WEBHOOK] Incoming:", {
+      orderId,
+      incomingStatus,
+      project,
+      paymentMethod,
+      webhookAmount,
+    });
 
     if (!orderId || !incomingStatus || !project) {
       return NextResponse.json(
@@ -148,9 +182,7 @@ export async function POST(request: Request) {
       });
     }
 
-    if (
-      transaction.paymentStatus === "CANCELLED"
-    ) {
+    if (transaction.paymentStatus === "CANCELLED") {
       return NextResponse.json(
         { error: "Transaksi sudah dibatalkan" },
         { status: 400 }
@@ -176,6 +208,13 @@ export async function POST(request: Request) {
       amount: dbAmount,
     });
 
+    if (!verification?.ok) {
+      return NextResponse.json(
+        { error: "Verifikasi transaksi gagal" },
+        { status: 400 }
+      );
+    }
+
     const apiTransaction =
       verification?.data?.transaction ||
       verification?.data?.payment ||
@@ -188,13 +227,6 @@ export async function POST(request: Request) {
     );
     const apiAmount = Number(apiTransaction?.amount);
     const apiOrderId = normalizeText(apiTransaction?.order_id || orderId);
-
-    if (!verification?.ok) {
-      return NextResponse.json(
-        { error: "Verifikasi transaksi gagal" },
-        { status: 400 }
-      );
-    }
 
     if (!apiOrderId || apiOrderId !== orderId) {
       return NextResponse.json(
@@ -231,6 +263,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const productDetails = safeJsonParse<ProductDetailsShape>(
+      transaction.productDetails,
+      {}
+    );
+
+    const mergedProductDetails: ProductDetailsShape = {
+      ...productDetails,
+      payment_provider: "pakasir",
+      payment_provider_status: "COMPLETED",
+      payment_paid_at: new Date().toISOString(),
+      payment_order_id: apiOrderId,
+      payment_payload: apiTransaction,
+    };
+
     const updateResult = await prisma.transaction.updateMany({
       where: {
         id: transaction.id,
@@ -239,10 +285,11 @@ export async function POST(request: Request) {
         },
       },
       data: {
-        paymentStatus: "PAID",
+        paymentStatus: "COMPLETED",
         paymentPaidAt: new Date(),
         paymentPayload: JSON.stringify(apiTransaction),
         premifyStatus: "PROCESSING",
+        productDetails: JSON.stringify(mergedProductDetails),
       },
     });
 
@@ -253,7 +300,19 @@ export async function POST(request: Request) {
       });
     }
 
-    const productName = extractProductName(transaction.productDetails);
+    const productName = extractProductName(mergedProductDetails);
+    const variantId = normalizeText(mergedProductDetails.variantId);
+    const providerTargetId =
+      normalizeText(mergedProductDetails.targetId) ||
+      normalizeText(transaction.customerPhone);
+
+    console.log("[PAKASIR WEBHOOK] Paid transaction:", {
+      transactionId: transaction.id,
+      invoiceId: transaction.invoiceId,
+      variantId,
+      providerTargetId,
+      productName,
+    });
 
     try {
       const processingMessage = WATemplates.orderProcessing({
@@ -262,12 +321,16 @@ export async function POST(request: Request) {
       });
 
       await sendWhatsAppMessage(transaction.customerPhone, processingMessage);
-    } catch {}
+    } catch (error) {
+      console.error("[PAKASIR WEBHOOK] Gagal kirim WA processing:", error);
+    }
 
     try {
+      const premifyIdentifier = variantId || transaction.productCode;
+
       const premifyResult = await processPremifyOrder(
         transaction.id,
-        transaction.productCode
+        premifyIdentifier
       );
 
       if (!premifyResult?.success) {
@@ -278,7 +341,9 @@ export async function POST(request: Request) {
           },
         });
       }
-    } catch {
+    } catch (error) {
+      console.error("[PAKASIR WEBHOOK] processPremifyOrder error:", error);
+
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
@@ -291,7 +356,9 @@ export async function POST(request: Request) {
       success: true,
       message: "Webhook berhasil diproses.",
     });
-  } catch {
+  } catch (error) {
+    console.error("[PAKASIR WEBHOOK] Internal error:", error);
+
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
