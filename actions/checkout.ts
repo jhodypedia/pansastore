@@ -3,6 +3,7 @@
 import "server-only";
 
 import crypto from "node:crypto";
+import QRCode from "qrcode";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
 import {
@@ -75,17 +76,6 @@ function normalizePhone(phone: string): string | null {
   return null;
 }
 
-function normalizeUrl(value: unknown): string | null {
-  const text = String(value || "").trim();
-  if (!text) return null;
-
-  if (/^https?:\/\//i.test(text)) {
-    return text;
-  }
-
-  return null;
-}
-
 function generateInvoiceId(): string {
   const datePrefix = new Date().toISOString().slice(2, 10).replace(/-/g, "");
   const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
@@ -114,6 +104,24 @@ function buildProductLabel(productName: string, variantName?: string | null) {
   return cleanProduct || cleanVariant || "Produk Digital";
 }
 
+async function generateQrisBuffer(qrText: string): Promise<Buffer | null> {
+  try {
+    if (!qrText?.trim()) return null;
+
+    const buffer = await QRCode.toBuffer(qrText, {
+      type: "png",
+      width: 512,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    });
+
+    return buffer;
+  } catch (error) {
+    console.error("[Checkout QRIS] Gagal generate QR buffer:", error);
+    return null;
+  }
+}
+
 async function resendPendingInvoiceToWhatsApp(params: {
   phone: string;
   invoiceId: string;
@@ -122,7 +130,7 @@ async function resendPendingInvoiceToWhatsApp(params: {
   targetId: string;
   productName: string;
   variantName?: string | null;
-  qrisImageUrl?: string | null;
+  qrString?: string | null;
 }) {
   try {
     const waMessage = WATemplates.invoiceCreated({
@@ -130,36 +138,34 @@ async function resendPendingInvoiceToWhatsApp(params: {
       productName: buildProductLabel(params.productName, params.variantName),
       targetId: params.targetId,
       price: params.amount,
-      paymentUrl: params.invoiceUrl,
     });
+
+    const qrisBuffer = params.qrString
+      ? await generateQrisBuffer(params.qrString)
+      : null;
 
     console.log("[CHECKOUT WA RESEND PENDING]", {
       invoiceId: params.invoiceId,
       phone: params.phone,
       invoiceUrl: params.invoiceUrl,
-      qrisImageUrl: params.qrisImageUrl || null,
+      hasQrString: Boolean(params.qrString),
+      qrisBufferBytes: qrisBuffer?.length || 0,
     });
 
-    if (params.qrisImageUrl) {
-      void sendInvoiceWithQris({
+    if (qrisBuffer) {
+      const ok = await sendInvoiceWithQris({
         phone: params.phone,
         message: waMessage,
-        qrisImageUrl: params.qrisImageUrl,
-      }).catch((err) => {
-        console.error(
-          "[Checkout WA Error] Gagal kirim ulang invoice + QRIS:",
-          err
-        );
+        qrisImageBuffer: qrisBuffer,
       });
-      return;
+
+      if (ok) return;
     }
 
-    void sendWhatsAppMessage(params.phone, waMessage).catch((err) => {
-      console.error(
-        "[Checkout WA Error] Gagal kirim ulang notifikasi invoice:",
-        err
-      );
-    });
+    await sendWhatsAppMessage(
+      params.phone,
+      `${waMessage}\n\nInvoice Anda masih aktif. Silakan cek status pesanan melalui:\n${params.invoiceUrl}`
+    );
   } catch (error) {
     console.error("[Checkout WA Existing Pending Error]:", error);
   }
@@ -307,10 +313,12 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
           existingPending.invoiceId
         )}`;
 
-      const existingQrisImageUrl =
-        normalizeUrl(existingProductDetails?.qrisImageUrl) ||
-        normalizeUrl(existingProductDetails?.qris_image_url) ||
-        null;
+      const existingQrString =
+        String(
+          existingProductDetails?.qr_string ||
+            existingProductDetails?.payment_number ||
+            ""
+        ).trim() || null;
 
       await resendPendingInvoiceToWhatsApp({
         phone: whatsapp,
@@ -324,7 +332,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
           String(existingProductDetails?.variantName || "").trim() ||
           variant?.name ||
           null,
-        qrisImageUrl: existingQrisImageUrl,
+        qrString: existingQrString,
       });
 
       return {
@@ -334,7 +342,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         invoiceId: existingPending.invoiceId,
         invoiceUrl: existingInvoiceUrl,
         amount: Number(existingPending.amount),
-        qrisImageUrl: existingQrisImageUrl,
+        qrisImageUrl: null,
       };
     }
 
@@ -433,18 +441,11 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
 
     const paymentRaw = paymentResult.data.payment;
 
-    const qrisImageUrl =
-      normalizeUrl(paymentRaw?.qris_image_url) ||
-      normalizeUrl(paymentRaw?.qrisImageUrl) ||
-      normalizeUrl(paymentResult?.data?.qris_image_url) ||
-      normalizeUrl(paymentResult?.data?.qrisImageUrl) ||
-      null;
-
     const qrString =
       String(
-        paymentRaw?.qr_string ||
+        paymentRaw?.payment_number ||
+          paymentRaw?.qr_string ||
           paymentRaw?.qr_string_value ||
-          paymentRaw?.payment_number ||
           ""
       ).trim() || null;
 
@@ -455,7 +456,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       fee: Number(paymentRaw.fee || 0),
       payment_number: String(paymentRaw.payment_number || ""),
       expired_at: String(paymentRaw.expired_at || ""),
-      qris_image_url: qrisImageUrl,
+      qris_image_url: null,
       qr_string: qrString,
     };
 
@@ -472,8 +473,8 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
           type: productType,
           duration: productDuration,
           warranty: productWarranty,
-          qrisImageUrl,
-          qris_image_url: qrisImageUrl,
+          qrisImageUrl: null,
+          qris_image_url: null,
           qr_string: qrString,
           payment_number: payment.payment_number,
           expired_at: payment.expired_at,
@@ -494,34 +495,38 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         productName: buildProductLabel(productName, variantName),
         targetId,
         price: finalPrice,
-        paymentUrl: invoiceUrl,
       });
 
-      console.log("[CHECKOUT QRIS WA]", {
+      const qrisBuffer = qrString ? await generateQrisBuffer(qrString) : null;
+
+      console.log("[CHECKOUT QRIS GENERATED]", {
         invoiceId,
         whatsapp,
-        qrisImageUrl,
         hasQrString: Boolean(qrString),
+        qrisBufferBytes: qrisBuffer?.length || 0,
       });
 
-      if (qrisImageUrl) {
-        void sendInvoiceWithQris({
+      if (qrisBuffer) {
+        const sent = await sendInvoiceWithQris({
           phone: whatsapp,
           message: waMessage,
-          qrisImageUrl,
-        }).catch((err) => {
-          console.error("[Checkout WA Error] Gagal kirim invoice + QRIS:", err);
+          qrisImageBuffer: qrisBuffer,
         });
-      } else {
-        void sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
-          console.error(
-            "[Checkout WA Error] Gagal kirim notifikasi invoice:",
-            err
+
+        if (!sent) {
+          await sendWhatsAppMessage(
+            whatsapp,
+            `${waMessage}\n\nQRIS belum berhasil dikirim otomatis. Silakan cek status pesanan melalui:\n${invoiceUrl}`
           );
-        });
+        }
+      } else {
+        await sendWhatsAppMessage(
+          whatsapp,
+          `${waMessage}\n\nQRIS belum tersedia dari provider. Silakan cek status pesanan melalui:\n${invoiceUrl}`
+        );
       }
     } catch (waError) {
-      console.error("[Checkout WA Template Error]:", waError);
+      console.error("[Checkout WA Error]:", waError);
     }
 
     return {
@@ -531,7 +536,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       invoiceId,
       invoiceUrl,
       amount: finalPrice,
-      qrisImageUrl,
+      qrisImageUrl: null,
     };
   } catch (error: any) {
     console.error("[Checkout Server Exception]:", {
