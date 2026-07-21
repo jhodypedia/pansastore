@@ -3,66 +3,272 @@
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
+import { auth } from "@/auth";
 
-// 1. TAMBAH PENGGUNA BARU (Khusus Admin)
-export async function addUser(formData: FormData) {
+type Role = "ADMIN" | "USER";
+
+type SafeUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: Role;
+  createdAt: Date;
+};
+
+type ActionResponse =
+  | { success: true; message: string; user?: SafeUser }
+  | { success: false; message: string };
+
+const ALLOWED_ROLES: Role[] = ["ADMIN", "USER"];
+
+function sanitizeText(value: FormDataEntryValue | null): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeName(name: string): string {
+  return name.replace(/\s+/g, " ").trim();
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function isValidRole(value: unknown): value is Role {
+  return typeof value === "string" && ALLOWED_ROLES.includes(value as Role);
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function requireAdmin() {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (session.user.role !== "ADMIN") {
+    throw new Error("FORBIDDEN");
+  }
+
+  return session.user;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    if (error.message === "UNAUTHORIZED") {
+      return "Anda harus login untuk melakukan aksi ini.";
+    }
+
+    if (error.message === "FORBIDDEN") {
+      return "Akses ditolak. Hanya admin yang dapat melakukan aksi ini.";
+    }
+  }
+
+  return fallback;
+}
+
+// 1. TAMBAH PENGGUNA BARU
+export async function addUser(formData: FormData): Promise<ActionResponse> {
   try {
-    const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const role = formData.get("role") as "ADMIN" | "USER";
+    await requireAdmin();
 
-    // Validasi email
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return { success: false, message: "Email ini sudah digunakan oleh pengguna lain." };
+    const name = normalizeName(sanitizeText(formData.get("name")));
+    const email = normalizeEmail(sanitizeText(formData.get("email")));
+    const password = sanitizeText(formData.get("password"));
+    const rawRole = formData.get("role");
+    const role: Role = isValidRole(rawRole) ? rawRole : "USER";
+
+    if (!name) {
+      return { success: false, message: "Nama wajib diisi." };
+    }
+
+    if (name.length < 3) {
+      return { success: false, message: "Nama minimal 3 karakter." };
+    }
+
+    if (!email) {
+      return { success: false, message: "Email wajib diisi." };
+    }
+
+    if (!isValidEmail(email)) {
+      return { success: false, message: "Format email tidak valid." };
+    }
+
+    if (!password) {
+      return { success: false, message: "Kata sandi wajib diisi." };
     }
 
     if (password.length < 6) {
       return { success: false, message: "Kata sandi minimal 6 karakter." };
     }
 
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      return {
+        success: false,
+        message: "Email ini sudah digunakan oleh pengguna lain.",
+      };
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role }
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     });
 
     revalidatePath("/admin/users");
-    
-    // Kembalikan data user baru untuk langsung dimasukkan ke state tabel tanpa refresh
-    return { success: true, message: "Pengguna baru berhasil ditambahkan!", user: newUser };
+
+    return {
+      success: true,
+      message: "Pengguna baru berhasil ditambahkan!",
+      user: newUser,
+    };
   } catch (error) {
     console.error("Gagal tambah user:", error);
-    return { success: false, message: "Terjadi kesalahan server saat menambah pengguna." };
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return {
+        success: false,
+        message: "Email ini sudah digunakan oleh pengguna lain.",
+      };
+    }
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "Terjadi kesalahan server saat menambah pengguna."
+      ),
+    };
   }
 }
 
-// 2. UBAH HAK AKSES (Update Role)
-export async function updateUserRole(userId: string, newRole: "ADMIN" | "USER") {
+// 2. UBAH HAK AKSES
+export async function updateUserRole(
+  userId: string,
+  newRole: Role
+): Promise<ActionResponse> {
   try {
+    const currentUser = await requireAdmin();
+    const safeUserId = userId.trim();
+
+    if (!safeUserId) {
+      return { success: false, message: "ID pengguna tidak valid." };
+    }
+
+    if (!isValidRole(newRole)) {
+      return { success: false, message: "Role tidak valid." };
+    }
+
+    if (currentUser.id === safeUserId) {
+      return {
+        success: false,
+        message: "Admin tidak dapat mengubah role akun miliknya sendiri.",
+      };
+    }
+
     await prisma.user.update({
-      where: { id: userId },
-      data: { role: newRole }
+      where: { id: safeUserId },
+      data: { role: newRole },
     });
-    
+
     revalidatePath("/admin/users");
-    return { success: true, message: `Hak akses berhasil diubah menjadi ${newRole}.` };
+
+    return {
+      success: true,
+      message: `Hak akses berhasil diubah menjadi ${newRole}.`,
+    };
   } catch (error) {
-    return { success: false, message: "Terjadi kesalahan saat memperbarui pengguna." };
+    console.error("Gagal update role:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return {
+        success: false,
+        message: "Pengguna tidak ditemukan atau sudah dihapus.",
+      };
+    }
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "Terjadi kesalahan saat memperbarui pengguna."
+      ),
+    };
   }
 }
 
-// 3. HAPUS PENGGUNA (Delete User)
-export async function deleteUser(userId: string) {
+// 3. HAPUS PENGGUNA
+export async function deleteUser(userId: string): Promise<ActionResponse> {
   try {
-    await prisma.user.delete({ 
-      where: { id: userId } 
+    const currentUser = await requireAdmin();
+    const safeUserId = userId.trim();
+
+    if (!safeUserId) {
+      return { success: false, message: "ID pengguna tidak valid." };
+    }
+
+    if (currentUser.id === safeUserId) {
+      return {
+        success: false,
+        message: "Admin tidak dapat menghapus akun miliknya sendiri.",
+      };
+    }
+
+    await prisma.user.delete({
+      where: { id: safeUserId },
     });
-    
+
     revalidatePath("/admin/users");
-    return { success: true, message: "Pengguna berhasil dihapus secara permanen." };
+
+    return {
+      success: true,
+      message: "Pengguna berhasil dihapus secara permanen.",
+    };
   } catch (error) {
-    return { success: false, message: "Gagal menghapus pengguna. Terjadi kesalahan sistem." };
+    console.error("Gagal hapus user:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return {
+        success: false,
+        message: "Pengguna tidak ditemukan atau sudah dihapus.",
+      };
+    }
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "Gagal menghapus pengguna. Terjadi kesalahan sistem."
+      ),
+    };
   }
 }
