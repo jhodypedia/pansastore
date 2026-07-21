@@ -16,9 +16,16 @@ type SafeUser = {
   createdAt: Date;
 };
 
-type ActionResponse =
-  | { success: true; message: string; user?: SafeUser }
+type ActionSuccess = {
+  success: true;
+  message: string;
+};
+
+type AddUserResponse =
+  | (ActionSuccess & { user: SafeUser })
   | { success: false; message: string };
+
+type MutationResponse = ActionSuccess | { success: false; message: string };
 
 const ALLOWED_ROLES: Role[] = ["ADMIN", "USER"];
 
@@ -70,8 +77,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-// 1. TAMBAH PENGGUNA BARU
-export async function addUser(formData: FormData): Promise<ActionResponse> {
+export async function addUser(formData: FormData): Promise<AddUserResponse> {
   try {
     await requireAdmin();
 
@@ -139,7 +145,7 @@ export async function addUser(formData: FormData): Promise<ActionResponse> {
 
     return {
       success: true,
-      message: "Pengguna baru berhasil ditambahkan!",
+      message: "Pengguna baru berhasil ditambahkan.",
       user: newUser,
     };
   } catch (error) {
@@ -165,11 +171,10 @@ export async function addUser(formData: FormData): Promise<ActionResponse> {
   }
 }
 
-// 2. UBAH HAK AKSES
 export async function updateUserRole(
   userId: string,
   newRole: Role
-): Promise<ActionResponse> {
+): Promise<MutationResponse> {
   try {
     const currentUser = await requireAdmin();
     const safeUserId = userId.trim();
@@ -223,8 +228,7 @@ export async function updateUserRole(
   }
 }
 
-// 3. HAPUS PENGGUNA
-export async function deleteUser(userId: string): Promise<ActionResponse> {
+export async function deleteUser(userId: string): Promise<MutationResponse> {
   try {
     const currentUser = await requireAdmin();
     const safeUserId = userId.trim();
