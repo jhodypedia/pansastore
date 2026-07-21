@@ -64,9 +64,7 @@ export default function UserTableClient({
         return;
       }
 
-      if (res.user) {
-        setUsers((prev) => [res.user, ...prev]);
-      }
+      setUsers((prev) => [res.user, ...prev]);
 
       toast.success(res.message, { id: toastId });
       formRef.current?.reset();
