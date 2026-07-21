@@ -1,4 +1,7 @@
-// lib/whatsapp.ts
+"use server";
+
+import "server-only";
+
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -121,6 +124,47 @@ async function closeExistingSocket(reason = "Reset existing socket") {
     console.error("[WA] Failed closing previous socket:", err);
   } finally {
     resetTransientState();
+  }
+}
+
+async function fetchImageBuffer(imageUrl: string): Promise<Buffer | null> {
+  try {
+    const res = await fetch(imageUrl, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.warn("[WA] Gagal fetch image:", {
+        imageUrl,
+        status: res.status,
+      });
+      return null;
+    }
+
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType && !contentType.startsWith("image/")) {
+      console.warn("[WA] URL bukan image content-type:", {
+        imageUrl,
+        contentType,
+      });
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (!buffer.length) {
+      console.warn("[WA] Buffer image kosong:", { imageUrl });
+      return null;
+    }
+
+    return buffer;
+  } catch (error: any) {
+    console.error("[WA] fetchImageBuffer failed:", {
+      imageUrl,
+      message: error?.message,
+    });
+    return null;
   }
 }
 
@@ -455,13 +499,26 @@ export async function sendInvoiceWithQris(params: {
   const textSent = await sendWhatsAppMessage(params.phone, params.message);
   if (!textSent) return false;
 
-  const imageSent = await sendWhatsAppImage({
-    phone: params.phone,
-    imageUrl: params.qrisImageUrl,
-    caption: "Silakan scan QRIS berikut untuk melakukan pembayaran.",
-  });
+  const imageBuffer = await fetchImageBuffer(params.qrisImageUrl);
 
-  return imageSent;
+  if (imageBuffer) {
+    const imageSent = await sendWhatsAppImage({
+      phone: params.phone,
+      imageBuffer,
+      caption: "Silakan scan QRIS berikut untuk melakukan pembayaran.",
+    });
+
+    if (imageSent) {
+      return true;
+    }
+  }
+
+  console.warn("[WA] QRIS image gagal dikirim, fallback ke URL text.");
+
+  return sendWhatsAppMessage(
+    params.phone,
+    `Silakan scan QRIS pembayaran melalui tautan berikut:\n${params.qrisImageUrl}`
+  );
 }
 
 function formatRupiah(amount: number | string) {
@@ -557,8 +614,8 @@ Pesanan Anda telah berhasil diproses.
 • Status: *Berhasil*
 
 ${
-  accountDetails
-    ? `*Detail akun / kredensial:*\n${sanitizeMessage(accountDetails)}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
+  safeText(accountDetails, "") 
+    ? `*Detail akun / kredensial:*\n${sanitizeMessage(String(accountDetails))}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
     : `Produk telah aktif dan siap digunakan. Silakan lakukan pengecekan pada akun tujuan Anda.`
 }
 
