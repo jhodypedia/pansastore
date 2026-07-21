@@ -88,7 +88,7 @@ model Variant {
 model Transaction {
   id               Int           @id @default(autoincrement())
   invoiceId        String        @unique
-  premifyOrderId   String?
+  premifyOrderId   String?       @unique
   productCode      String
   customerPhone    String
   amount           Float
@@ -110,3 +110,4 @@ model Transaction {
   @@index([paymentExpiredAt])
   @@index([customerPhone, productCode, paymentStatus])
 }
+
