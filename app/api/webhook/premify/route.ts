@@ -110,7 +110,12 @@ export async function POST(req: Request) {
       data?.order_id || data?.order_number || ""
     ).trim();
 
-    console.log("[Premify Webhook] Event diterima:", event, {
+    const normalizedEvent = String(event || "").toLowerCase();
+    const normalizedProviderStatus = String(data?.status || "").toLowerCase();
+
+    console.log("[Premify Webhook] Event diterima:", {
+      event,
+      providerStatus: data?.status,
       order_id: data?.order_id,
       order_number: data?.order_number,
       providerOrderId,
@@ -142,12 +147,10 @@ export async function POST(req: Request) {
       console.log(`[Premify Webhook] Mode DEV: sandbox tetap diproses: ${providerOrderId}`);
     }
 
-    let transaction = null as Awaited<
-      ReturnType<typeof prisma.transaction.findUnique>
-    > | null;
+    let transaction: any = null;
 
     for (let attempt = 1; attempt <= 4; attempt++) {
-      transaction = await prisma.transaction.findUnique({
+      transaction = await prisma.transaction.findFirst({
         where: { premifyOrderId: providerOrderId },
       });
 
@@ -190,25 +193,26 @@ export async function POST(req: Request) {
 
     const targetId = productDetails.targetId || "-";
 
-    if (event === "order.processing") {
-      if (transaction.premifyStatus !== "PROCESSING") {
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: { premifyStatus: "PROCESSING" },
-        });
-      }
+    const isCompletedEvent =
+      normalizedEvent === "order.completed" ||
+      normalizedProviderStatus === "completed" ||
+      normalizedProviderStatus === "success";
 
-      console.log(
-        `[Premify Webhook] Order ${transaction.invoiceId} sedang diproses oleh Premify.`
+    const isFailedEvent =
+      normalizedEvent === "order.failed" ||
+      normalizedEvent === "order.cancelled" ||
+      normalizedProviderStatus === "failed" ||
+      normalizedProviderStatus === "cancelled";
+
+    const isProcessingEvent =
+      !isCompletedEvent &&
+      !isFailedEvent &&
+      (
+        normalizedEvent === "order.processing" ||
+        normalizedProviderStatus === "processing"
       );
 
-      return NextResponse.json({
-        success: true,
-        message: "Processing event handled",
-      });
-    }
-
-    if (event === "order.completed") {
+    if (isCompletedEvent) {
       if (transaction.premifyStatus === "COMPLETED") {
         return NextResponse.json({
           success: true,
@@ -263,7 +267,7 @@ export async function POST(req: Request) {
       });
     }
 
-    if (event === "order.failed" || event === "order.cancelled") {
+    if (isFailedEvent) {
       if (
         transaction.premifyStatus === "FAILED" ||
         transaction.premifyStatus === "CANCELLED"
@@ -283,7 +287,11 @@ export async function POST(req: Request) {
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
-          premifyStatus: event === "order.cancelled" ? "CANCELLED" : "FAILED",
+          premifyStatus:
+            normalizedEvent === "order.cancelled" ||
+            normalizedProviderStatus === "cancelled"
+              ? "CANCELLED"
+              : "FAILED",
           productDetails: JSON.stringify(updatedDetails),
         },
       });
@@ -311,8 +319,26 @@ export async function POST(req: Request) {
       });
     }
 
+    if (isProcessingEvent) {
+      if (transaction.premifyStatus !== "PROCESSING") {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { premifyStatus: "PROCESSING" },
+        });
+      }
+
+      console.log(
+        `[Premify Webhook] Order ${transaction.invoiceId} sedang diproses oleh Premify.`
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: "Processing event handled",
+      });
+    }
+
     console.log(
-      `[Premify Webhook] Event '${event}' untuk ${providerOrderId} tidak memerlukan aksi.`
+      `[Premify Webhook] Event '${event}' dengan status '${data?.status}' untuk ${providerOrderId} tidak memerlukan aksi.`
     );
 
     return NextResponse.json(
