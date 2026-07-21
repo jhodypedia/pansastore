@@ -1,4 +1,3 @@
-
 import "server-only";
 
 import {
@@ -106,7 +105,6 @@ function sanitizeMessage(message: string): string {
 async function removeAuthFolder() {
   try {
     await fs.rm(WA_AUTH_FOLDER, { recursive: true, force: true });
-    console.log("[WA] Folder session berhasil dihapus.");
   } catch (err) {
     console.error("[WA] Gagal hapus folder session:", err);
   }
@@ -126,47 +124,6 @@ async function closeExistingSocket(reason = "Reset existing socket") {
   }
 }
 
-async function fetchImageBuffer(imageUrl: string): Promise<Buffer | null> {
-  try {
-    const res = await fetch(imageUrl, {
-      method: "GET",
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      console.warn("[WA] Gagal fetch image:", {
-        imageUrl,
-        status: res.status,
-      });
-      return null;
-    }
-
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType && !contentType.startsWith("image/")) {
-      console.warn("[WA] URL bukan image content-type:", {
-        imageUrl,
-        contentType,
-      });
-    }
-
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (!buffer.length) {
-      console.warn("[WA] Buffer image kosong:", { imageUrl });
-      return null;
-    }
-
-    return buffer;
-  } catch (error: any) {
-    console.error("[WA] fetchImageBuffer failed:", {
-      imageUrl,
-      message: error?.message,
-    });
-    return null;
-  }
-}
-
 export function getWhatsAppStatus() {
   return {
     status: global.waStatus || "DISCONNECTED",
@@ -182,11 +139,13 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
   global.waManualStop = false;
   clearReconnectTimer();
 
-  if (global.waIsStarting) {
-    return getWhatsAppStatus();
-  }
+  if (global.waIsStarting) return getWhatsAppStatus();
 
-  if (global.waStatus === "CONNECTED" && global.waSocket && !options.usePairingCode) {
+  if (
+    global.waStatus === "CONNECTED" &&
+    global.waSocket &&
+    !options.usePairingCode
+  ) {
     return getWhatsAppStatus();
   }
 
@@ -205,10 +164,10 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
       browser: ["PansaStore", "Chrome", "1.0.0"],
       markOnlineOnConnect: false,
       syncFullHistory: false,
+      generateHighQualityLinkPreview: false,
     });
 
     global.waSocket = sock;
-
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async (update) => {
@@ -232,10 +191,7 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           );
 
           if (!normalizedPairingPhone) {
-            setWAStatus(
-              "ERROR",
-              "Nomor pairing code tidak valid. Gunakan format Indonesia yang benar."
-            );
+            setWAStatus("ERROR", "Nomor pairing code tidak valid.");
             global.waIsStarting = false;
             return;
           }
@@ -248,9 +204,7 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
             global.waPairingCode = code;
             global.waQrCode = "";
             setWAStatus("PAIRING_CODE");
-            console.log("[WA] Pairing code:", code);
           } catch (pairErr: any) {
-            console.error("[WA] requestPairingCode failed:", pairErr);
             global.waRequestedPairingCode = false;
             setWAStatus(
               "ERROR",
@@ -271,18 +225,11 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
           const disconnectMessage =
             (lastDisconnect?.error as any)?.message || "Unknown disconnect";
-
           const wasManualStop = global.waManualStop;
 
           global.waSocket = null;
           global.waIsStarting = false;
           resetTransientState();
-
-          console.warn("[WA] Connection closed:", {
-            statusCode,
-            disconnectMessage,
-            wasManualStop,
-          });
 
           if (wasManualStop) {
             setWAStatus("DISCONNECTED", "Disconnected manually");
@@ -295,29 +242,10 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
             return;
           }
 
-          if (statusCode === DisconnectReason.restartRequired) {
-            setWAStatus("RECONNECTING", "Restart required");
-            scheduleReconnect();
-            return;
-          }
-
-          if (
-            statusCode === DisconnectReason.connectionClosed ||
-            statusCode === DisconnectReason.connectionLost ||
-            statusCode === DisconnectReason.timedOut ||
-            statusCode === DisconnectReason.unavailableService ||
-            statusCode === DisconnectReason.badSession
-          ) {
-            setWAStatus("RECONNECTING", disconnectMessage);
-            scheduleReconnect();
-            return;
-          }
-
-          setWAStatus("ERROR", disconnectMessage);
+          setWAStatus("RECONNECTING", disconnectMessage);
           scheduleReconnect();
         }
       } catch (err: any) {
-        console.error("[WA] Error on connection.update:", err);
         setWAStatus("ERROR", err?.message || "connection.update error");
         global.waIsStarting = false;
       }
@@ -336,11 +264,10 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
           msg.message.extendedTextMessage?.text ||
           "";
 
-        const normalizedText = text.trim().toLowerCase();
-
-        if (normalizedText === "ping") {
+        if (text.trim().toLowerCase() === "ping") {
           await sock.sendMessage(sender, {
             text: "PansaStore aktif dan berjalan normal.",
+            linkPreview: undefined,
           });
         }
       } catch (err) {
@@ -354,7 +281,6 @@ export async function startWhatsAppBot(options: StartWhatsAppOptions = {}) {
     global.waIsStarting = false;
     resetTransientState();
     setWAStatus("ERROR", error?.message || "Failed to start WhatsApp bot");
-    console.error("[WA] Gagal start bot:", error);
 
     if (!global.waManualStop) {
       scheduleReconnect();
@@ -427,7 +353,10 @@ export async function sendWhatsAppMessage(
   const jid = `${normalizedPhone}@s.whatsapp.net`;
 
   try {
-    await global.waSocket.sendMessage(jid, { text: cleanMessage });
+    await global.waSocket.sendMessage(jid, {
+      text: cleanMessage,
+      linkPreview: undefined,
+    });
     return true;
   } catch (error: any) {
     console.error("[WA] sendMessage failed:", {
@@ -441,8 +370,7 @@ export async function sendWhatsAppMessage(
 
 export async function sendWhatsAppImage(params: {
   phone: string;
-  imageUrl?: string;
-  imageBuffer?: Buffer;
+  imageBuffer: Buffer;
   caption?: string;
 }): Promise<boolean> {
   if (global.waStatus !== "CONNECTED" || !global.waSocket) {
@@ -458,27 +386,13 @@ export async function sendWhatsAppImage(params: {
     return false;
   }
 
-  if (!params.imageUrl && !params.imageBuffer) {
-    console.warn("[WA] Gagal kirim image: imageUrl/imageBuffer kosong.");
-    return false;
-  }
-
   const jid = `${normalizedPhone}@s.whatsapp.net`;
 
   try {
-    const payload: any = {};
-
-    if (params.caption) {
-      payload.caption = sanitizeMessage(params.caption);
-    }
-
-    if (params.imageBuffer) {
-      payload.image = params.imageBuffer;
-    } else if (params.imageUrl) {
-      payload.image = { url: params.imageUrl };
-    }
-
-    await global.waSocket.sendMessage(jid, payload);
+    await global.waSocket.sendMessage(jid, {
+      image: params.imageBuffer,
+      caption: params.caption ? sanitizeMessage(params.caption) : undefined,
+    });
     return true;
   } catch (error: any) {
     console.error("[WA] sendImage failed:", {
@@ -493,31 +407,16 @@ export async function sendWhatsAppImage(params: {
 export async function sendInvoiceWithQris(params: {
   phone: string;
   message: string;
-  qrisImageUrl: string;
+  qrisImageBuffer: Buffer;
 }): Promise<boolean> {
   const textSent = await sendWhatsAppMessage(params.phone, params.message);
   if (!textSent) return false;
 
-  const imageBuffer = await fetchImageBuffer(params.qrisImageUrl);
-
-  if (imageBuffer) {
-    const imageSent = await sendWhatsAppImage({
-      phone: params.phone,
-      imageBuffer,
-      caption: "Silakan scan QRIS berikut untuk melakukan pembayaran.",
-    });
-
-    if (imageSent) {
-      return true;
-    }
-  }
-
-  console.warn("[WA] QRIS image gagal dikirim, fallback ke URL text.");
-
-  return sendWhatsAppMessage(
-    params.phone,
-    `Silakan scan QRIS pembayaran melalui tautan berikut:\n${params.qrisImageUrl}`
-  );
+  return sendWhatsAppImage({
+    phone: params.phone,
+    imageBuffer: params.qrisImageBuffer,
+    caption: "Silakan scan QRIS berikut untuk melakukan pembayaran.",
+  });
 }
 
 function formatRupiah(amount: number | string) {
@@ -536,13 +435,11 @@ export const WATemplates = {
     productName,
     targetId,
     price,
-    paymentUrl,
   }: {
     invoiceId: string;
     productName: string;
     targetId: string;
     price: number | string;
-    paymentUrl: string;
   }) => `
 *PansaStore*
 _Notifikasi Invoice_
@@ -556,10 +453,7 @@ Terima kasih. Pesanan Anda sudah kami terima dengan rincian berikut:
 • Total Pembayaran: *Rp ${formatRupiah(price)}*
 • Status: *Menunggu Pembayaran*
 
-*Tautan pembayaran:*
-${safeText(paymentUrl)}
-
-Silakan selesaikan pembayaran sebelum tautan kedaluwarsa. Anda juga dapat scan QRIS yang kami kirim setelah pesan ini. Setelah pembayaran berhasil dikonfirmasi, pesanan akan diproses otomatis oleh sistem.
+Silakan scan QRIS yang kami kirim setelah pesan ini untuk melakukan pembayaran.
 
 Terima kasih.
 _PansaStore_
@@ -613,8 +507,10 @@ Pesanan Anda telah berhasil diproses.
 • Status: *Berhasil*
 
 ${
-  safeText(accountDetails, "") 
-    ? `*Detail akun / kredensial:*\n${sanitizeMessage(String(accountDetails))}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
+  safeText(accountDetails, "")
+    ? `*Detail akun / kredensial:*\n${sanitizeMessage(
+        String(accountDetails)
+      )}\n\nMohon simpan data di atas dengan aman dan jangan dibagikan kepada pihak lain.`
     : `Produk telah aktif dan siap digunakan. Silakan lakukan pengecekan pada akun tujuan Anda.`
 }
 
@@ -669,7 +565,7 @@ Pembayaran untuk pesanan berikut belum berhasil kami konfirmasi:
 • Produk: *${safeText(productName || "Produk Digital")}*
 • Status: *Belum Berhasil*
 
-Silakan coba lakukan pembayaran kembali menggunakan tautan atau metode yang tersedia. Jika Anda merasa pembayaran sudah dilakukan tetapi status belum berubah, balas pesan ini untuk pengecekan manual.
+Silakan coba lakukan pembayaran kembali. Jika Anda merasa pembayaran sudah dilakukan tetapi status belum berubah, balas pesan ini untuk pengecekan manual.
 
 Terima kasih.
 _PansaStore_
