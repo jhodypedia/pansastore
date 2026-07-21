@@ -60,6 +60,7 @@ type ProductDetailsShape = {
   payment_created_at?: string | null;
   payment_order_id?: string | null;
   invoice_url?: string | null;
+  payment_error?: string | null;
   [key: string]: unknown;
 };
 
@@ -103,10 +104,65 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
 }
 
 function buildProductLabel(productName: string, variantName?: string | null) {
-  if (variantName && variantName !== productName) {
-    return `${productName} - ${variantName}`;
+  const cleanProduct = String(productName || "").trim();
+  const cleanVariant = String(variantName || "").trim();
+
+  if (cleanProduct && cleanVariant && cleanVariant !== cleanProduct) {
+    return `${cleanProduct} - ${cleanVariant}`;
   }
-  return productName;
+
+  return cleanProduct || cleanVariant || "Produk Digital";
+}
+
+async function resendPendingInvoiceToWhatsApp(params: {
+  phone: string;
+  invoiceId: string;
+  invoiceUrl: string;
+  amount: number;
+  targetId: string;
+  productName: string;
+  variantName?: string | null;
+  qrisImageUrl?: string | null;
+}) {
+  try {
+    const waMessage = WATemplates.invoiceCreated({
+      invoiceId: params.invoiceId,
+      productName: buildProductLabel(params.productName, params.variantName),
+      targetId: params.targetId,
+      price: params.amount,
+      paymentUrl: params.invoiceUrl,
+    });
+
+    console.log("[CHECKOUT WA RESEND PENDING]", {
+      invoiceId: params.invoiceId,
+      phone: params.phone,
+      invoiceUrl: params.invoiceUrl,
+      qrisImageUrl: params.qrisImageUrl || null,
+    });
+
+    if (params.qrisImageUrl) {
+      void sendInvoiceWithQris({
+        phone: params.phone,
+        message: waMessage,
+        qrisImageUrl: params.qrisImageUrl,
+      }).catch((err) => {
+        console.error(
+          "[Checkout WA Error] Gagal kirim ulang invoice + QRIS:",
+          err
+        );
+      });
+      return;
+    }
+
+    void sendWhatsAppMessage(params.phone, waMessage).catch((err) => {
+      console.error(
+        "[Checkout WA Error] Gagal kirim ulang notifikasi invoice:",
+        err
+      );
+    });
+  } catch (error) {
+    console.error("[Checkout WA Existing Pending Error]:", error);
+  }
 }
 
 export async function processCheckout(formData: FormData): Promise<CheckoutResult> {
@@ -116,7 +172,9 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     const variantId = variantIdRaw || null;
     const targetId = String(formData.get("targetId") || "").trim();
     const whatsappRaw = String(formData.get("whatsapp") || "").trim();
-    const method = String(formData.get("method") || "qris").trim().toLowerCase();
+    const method = String(formData.get("method") || "qris")
+      .trim()
+      .toLowerCase();
 
     if (!productId || !targetId || !whatsappRaw) {
       return {
@@ -243,19 +301,40 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         {}
       );
 
+      const existingInvoiceUrl =
+        String(existingProductDetails?.invoice_url || "").trim() ||
+        `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(
+          existingPending.invoiceId
+        )}`;
+
+      const existingQrisImageUrl =
+        normalizeUrl(existingProductDetails?.qrisImageUrl) ||
+        normalizeUrl(existingProductDetails?.qris_image_url) ||
+        null;
+
+      await resendPendingInvoiceToWhatsApp({
+        phone: whatsapp,
+        invoiceId: existingPending.invoiceId,
+        invoiceUrl: existingInvoiceUrl,
+        amount: Number(existingPending.amount),
+        targetId,
+        productName:
+          String(existingProductDetails?.productName || "").trim() || product.name,
+        variantName:
+          String(existingProductDetails?.variantName || "").trim() ||
+          variant?.name ||
+          null,
+        qrisImageUrl: existingQrisImageUrl,
+      });
+
       return {
         success: true,
         message: "Invoice pending sebelumnya masih aktif.",
         payment: null,
         invoiceId: existingPending.invoiceId,
-        invoiceUrl:
-          String(existingProductDetails?.invoice_url || "").trim() ||
-          `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(existingPending.invoiceId)}`,
+        invoiceUrl: existingInvoiceUrl,
         amount: Number(existingPending.amount),
-        qrisImageUrl:
-          normalizeUrl(existingProductDetails?.qrisImageUrl) ||
-          normalizeUrl(existingProductDetails?.qris_image_url) ||
-          null,
+        qrisImageUrl: existingQrisImageUrl,
       };
     }
 
@@ -339,14 +418,16 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
             payment_order_id: invoiceId,
             invoice_url: invoiceUrl,
             payment_error:
-              paymentResult?.data?.message || "Gagal membuat invoice pembayaran.",
+              paymentResult?.data?.message ||
+              "Gagal membuat invoice pembayaran.",
           } satisfies ProductDetailsShape),
         },
       });
 
       return {
         success: false,
-        message: paymentResult?.data?.message || "Gagal membuat invoice pembayaran.",
+        message:
+          paymentResult?.data?.message || "Gagal membuat invoice pembayaran.",
       };
     }
 
@@ -416,6 +497,13 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         paymentUrl: invoiceUrl,
       });
 
+      console.log("[CHECKOUT QRIS WA]", {
+        invoiceId,
+        whatsapp,
+        qrisImageUrl,
+        hasQrString: Boolean(qrString),
+      });
+
       if (qrisImageUrl) {
         void sendInvoiceWithQris({
           phone: whatsapp,
@@ -426,7 +514,10 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         });
       } else {
         void sendWhatsAppMessage(whatsapp, waMessage).catch((err) => {
-          console.error("[Checkout WA Error] Gagal kirim notifikasi invoice:", err);
+          console.error(
+            "[Checkout WA Error] Gagal kirim notifikasi invoice:",
+            err
+          );
         });
       }
     } catch (waError) {
