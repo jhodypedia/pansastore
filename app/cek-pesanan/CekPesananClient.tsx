@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -190,6 +190,7 @@ export default function CekPesananClient({
   const router = useRouter();
   const [invoiceInput, setInvoiceInput] = useState(initialInvoice || "");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,19 +233,55 @@ export default function CekPesananClient({
   const customerPhone =
     String(transactionData?.customerPhone || productDetails?.customerPhone || "").trim() || "-";
 
-  const isPending = transactionData?.paymentStatus === "PENDING";
-  const isExpired =
-    transactionData?.paymentStatus === "EXPIRED" ||
-    transactionData?.paymentStatus === "FAILED" ||
-    transactionData?.paymentStatus === "CANCELLED";
-  const isPaid =
-    transactionData?.paymentStatus === "PAID" ||
-    transactionData?.paymentStatus === "COMPLETED";
+  const paymentStatus = String(transactionData?.paymentStatus || "PENDING");
+  const orderStatus = String(transactionData?.premifyStatus || "PENDING");
+  const premifyOrderId = String(transactionData?.premifyOrderId || "").trim();
 
-  const timeline = buildTimeline(
-    String(transactionData?.paymentStatus || "PENDING"),
-    String(transactionData?.premifyStatus || "PENDING")
-  );
+  const isPending = paymentStatus === "PENDING";
+  const isExpired =
+    paymentStatus === "EXPIRED" ||
+    paymentStatus === "FAILED" ||
+    paymentStatus === "CANCELLED";
+  const isPaid =
+    paymentStatus === "PAID" ||
+    paymentStatus === "COMPLETED";
+
+  const isOrderFinal =
+    orderStatus === "SUCCESS" ||
+    orderStatus === "COMPLETED" ||
+    orderStatus === "FAILED" ||
+    orderStatus === "CANCELLED";
+
+  const shouldAutoRefresh =
+    !!transactionData &&
+    (
+      isPending ||
+      (isPaid && !isOrderFinal)
+    );
+
+  const timeline = buildTimeline(paymentStatus, orderStatus);
+
+  useEffect(() => {
+    if (!shouldAutoRefresh || !initialInvoice) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      setIsRefreshing(true);
+      router.refresh();
+    }, 7000);
+
+    return () => window.clearInterval(intervalId);
+  }, [shouldAutoRefresh, initialInvoice, router]);
+
+  useEffect(() => {
+    if (!isRefreshing) return;
+    const timeoutId = window.setTimeout(() => setIsRefreshing(false), 800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isRefreshing, transactionData]);
+
+  const waitingVendorMapping =
+    isPaid && !premifyOrderId && (orderStatus === "PENDING" || orderStatus === "PROCESSING");
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f7f6f2] font-sans text-slate-900 selection:bg-emerald-200 selection:text-emerald-950">
@@ -260,8 +297,8 @@ export default function CekPesananClient({
           </Link>
 
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-800">
-            <i className="ri-radar-line text-sm" />
-            Cek Pesanan
+            <i className={`text-sm ${isRefreshing ? "ri-loader-4-line animate-spin" : "ri-radar-line"}`} />
+            {isRefreshing ? "Memperbarui" : "Cek Pesanan"}
           </div>
         </div>
       </header>
@@ -363,11 +400,11 @@ export default function CekPesananClient({
                       </div>
                       <span
                         className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${getPaymentStatusColor(
-                          transactionData.paymentStatus
+                          paymentStatus
                         )}`}
                       >
-                        <i className={getPaymentStatusIcon(transactionData.paymentStatus)} />
-                        {getPaymentStatusLabel(transactionData.paymentStatus)}
+                        <i className={getPaymentStatusIcon(paymentStatus)} />
+                        {getPaymentStatusLabel(paymentStatus)}
                       </span>
                     </div>
 
@@ -377,20 +414,25 @@ export default function CekPesananClient({
                       </div>
                       <span
                         className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${getOrderStatusColor(
-                          transactionData.premifyStatus
+                          orderStatus
                         )}`}
                       >
                         <i
-                          className={`${getOrderStatusIcon(transactionData.premifyStatus)} ${
-                            transactionData.premifyStatus === "PROCESSING"
-                              ? "animate-spin"
-                              : ""
+                          className={`${getOrderStatusIcon(orderStatus)} ${
+                            orderStatus === "PROCESSING" ? "animate-spin" : ""
                           }`}
                         />
-                        {getOrderStatusLabel(transactionData.premifyStatus)}
+                        {getOrderStatusLabel(orderStatus)}
                       </span>
                     </div>
                   </div>
+
+                  {waitingVendorMapping ? (
+                    <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-medium leading-6 text-blue-800">
+                      <div className="mb-1 font-black">Pembayaran sudah diterima</div>
+                      Sistem sedang menyinkronkan pesanan ke vendor. Status vendor dapat muncul beberapa saat setelah pembayaran berhasil.
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -449,7 +491,7 @@ export default function CekPesananClient({
                       Order ID Vendor
                     </div>
                     <div className="mt-2 break-all text-sm font-bold text-white/75">
-                      {transactionData.premifyOrderId || "Menunggu proses penyelesaian..."}
+                      {premifyOrderId || "Menunggu sinkronisasi ke vendor..."}
                     </div>
                   </div>
                 </div>
@@ -554,10 +596,13 @@ export default function CekPesananClient({
 
                   <button
                     type="button"
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                      setIsRefreshing(true);
+                      router.refresh();
+                    }}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
                   >
-                    <i className="ri-refresh-line" />
+                    <i className={`ri-refresh-line ${isRefreshing ? "animate-spin" : ""}`} />
                     Refresh Status
                   </button>
                 </div>
@@ -573,10 +618,10 @@ export default function CekPesananClient({
                     Gunakan nomor invoice yang sama seperti yang dikirim melalui halaman checkout atau WhatsApp.
                   </p>
                   <p>
-                    Untuk status pending, tunggu beberapa saat setelah pembayaran agar sistem selesai melakukan sinkronisasi.
+                    Untuk status pending atau baru dibayar, tunggu beberapa saat agar sistem selesai melakukan sinkronisasi.
                   </p>
                   <p>
-                    Jika pesanan belum masuk setelah pembayaran berhasil, simpan invoice ini sebagai referensi pengecekan.
+                    Jika pembayaran sudah berhasil namun order vendor belum tampil, halaman ini akan memperbarui status secara otomatis selama proses masih berjalan.
                   </p>
                 </div>
               </div>
