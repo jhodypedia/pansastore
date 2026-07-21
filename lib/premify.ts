@@ -8,6 +8,11 @@ type PremifyOrderResponse = {
   message?: string;
   data?: {
     order_id?: string;
+    status?: string;
+    payment_status?: string;
+    total_amount?: number;
+    current_balance?: number;
+    is_test?: boolean;
     [key: string]: any;
   };
 };
@@ -66,7 +71,11 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
       payload.email_invite = emailInvite;
     }
 
-    console.log("[PREMIFY HTTP] Menembak endpoint /order...", payload);
+    console.log("[PREMIFY HTTP] Menembak endpoint /order...", {
+      transactionId,
+      invoiceId: transaction.invoiceId,
+      payload,
+    });
 
     const response = await axios.post<PremifyOrderResponse>(
       `${PREMIFY_BASE_URL}/order`,
@@ -87,14 +96,41 @@ export async function processPremifyOrder(transactionId: number, variantId: stri
     );
 
     if (response.status >= 200 && response.status < 300 && response.data?.success) {
-      console.log(`[PREMIFY SUKSES] Order ID Premify: ${response.data?.data?.order_id}`);
+      const premifyOrderId = String(response.data?.data?.order_id || "").trim();
+
+      console.log("[PREMIFY SUKSES]", {
+        transactionId,
+        invoiceId: transaction.invoiceId,
+        premifyOrderId,
+      });
+
+      if (!premifyOrderId) {
+        await prisma.transaction.update({
+          where: { id: transactionId },
+          data: { premifyStatus: "FAILED" },
+        });
+
+        return {
+          success: false,
+          message: "Premify sukses tetapi order_id kosong.",
+        };
+      }
 
       await prisma.transaction.update({
         where: { id: transactionId },
         data: {
-          premifyStatus: "PROCESSING",
-          premifyOrderId: response.data?.data?.order_id || null,
+          premifyStatus:
+            response.data?.data?.status?.toUpperCase() === "COMPLETED"
+              ? "COMPLETED"
+              : "PROCESSING",
+          premifyOrderId,
         },
+      });
+
+      console.log("[PREMIFY MAP TERSIMPAN]", {
+        transactionId,
+        invoiceId: transaction.invoiceId,
+        premifyOrderId,
       });
 
       return { success: true, data: response.data?.data };
