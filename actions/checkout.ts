@@ -1,5 +1,7 @@
 "use server";
 
+import "server-only";
+
 import crypto from "node:crypto";
 import prisma from "@/lib/prisma";
 import { pakasirSDK } from "@/lib/pakasir";
@@ -36,6 +38,31 @@ type CheckoutResult =
       fieldErrors?: Record<string, string[] | undefined>;
     };
 
+type ProductDetailsShape = {
+  productId?: string | null;
+  productName?: string | null;
+  variantId?: string | null;
+  variantName?: string | null;
+  targetId?: string | null;
+  customerPhone?: string | null;
+  type?: string | null;
+  duration?: string | null;
+  warranty?: string | null;
+  qrisImageUrl?: string | null;
+  qris_image_url?: string | null;
+  qr_string?: string | null;
+  payment_number?: string | null;
+  expired_at?: string | null;
+  total_payment?: number | null;
+  fee?: number | null;
+  payment_provider?: string | null;
+  payment_provider_status?: string | null;
+  payment_created_at?: string | null;
+  payment_order_id?: string | null;
+  invoice_url?: string | null;
+  [key: string]: unknown;
+};
+
 function normalizePhone(phone: string): string | null {
   const digits = String(phone || "").replace(/\D/g, "");
 
@@ -62,6 +89,24 @@ function generateInvoiceId(): string {
   const datePrefix = new Date().toISOString().slice(2, 10).replace(/-/g, "");
   const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
   return `INV-PS-${datePrefix}-${rand}`;
+}
+
+function safeJsonParse<T>(value: unknown, fallback: T): T {
+  try {
+    if (!value) return fallback;
+    if (typeof value === "string") return JSON.parse(value) as T;
+    if (typeof value === "object") return value as T;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildProductLabel(productName: string, variantName?: string | null) {
+  if (variantName && variantName !== productName) {
+    return `${productName} - ${variantName}`;
+  }
+  return productName;
 }
 
 export async function processCheckout(formData: FormData): Promise<CheckoutResult> {
@@ -96,6 +141,15 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       return {
         success: false,
         message: `Metode pembayaran ${method} belum didukung sistem ini.`,
+      };
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+    if (!appUrl) {
+      console.error("[Checkout Error] NEXT_PUBLIC_APP_URL belum diatur.");
+      return {
+        success: false,
+        message: "Konfigurasi aplikasi belum lengkap. Hubungi admin.",
       };
     }
 
@@ -166,7 +220,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
 
     const productCode = variant ? variant.id : product.id;
 
-    const existingPending = await prisma.transaction.findFirst({
+    const pendingTransactions = await prisma.transaction.findMany({
       where: {
         customerPhone: whatsapp,
         productCode,
@@ -175,22 +229,28 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       orderBy: {
         createdAt: "desc",
       },
+      take: 5,
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
+    const existingPending = pendingTransactions.find((tx) => {
+      const details = safeJsonParse<ProductDetailsShape>(tx.productDetails, {});
+      return String(details?.targetId || "").trim() === targetId;
+    });
 
     if (existingPending) {
-      const existingProductDetails =
-        typeof existingPending.productDetails === "string"
-          ? JSON.parse(existingPending.productDetails)
-          : existingPending.productDetails || {};
+      const existingProductDetails = safeJsonParse<ProductDetailsShape>(
+        existingPending.productDetails,
+        {}
+      );
 
       return {
         success: true,
         message: "Invoice pending sebelumnya masih aktif.",
         payment: null,
         invoiceId: existingPending.invoiceId,
-        invoiceUrl: `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(existingPending.invoiceId)}`,
+        invoiceUrl:
+          String(existingProductDetails?.invoice_url || "").trim() ||
+          `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(existingPending.invoiceId)}`,
         amount: Number(existingPending.amount),
         qrisImageUrl:
           normalizeUrl(existingProductDetails?.qrisImageUrl) ||
@@ -200,6 +260,7 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
     }
 
     const invoiceId = generateInvoiceId();
+    const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(invoiceId)}`;
 
     const productName = product.name;
     const variantName = variant?.name ?? product.name;
@@ -228,7 +289,16 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
           qrisImageUrl: null,
           qris_image_url: null,
           qr_string: null,
-        }),
+          payment_number: null,
+          expired_at: null,
+          total_payment: null,
+          fee: null,
+          payment_provider: "pakasir",
+          payment_provider_status: "PENDING",
+          payment_created_at: new Date().toISOString(),
+          payment_order_id: null,
+          invoice_url: invoiceUrl,
+        } satisfies ProductDetailsShape),
       },
     });
 
@@ -246,6 +316,31 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
         where: { invoiceId },
         data: {
           paymentStatus: "FAILED",
+          productDetails: JSON.stringify({
+            productId: product.id,
+            productName,
+            variantId: variant?.id ?? null,
+            variantName,
+            targetId,
+            customerPhone: whatsapp,
+            type: productType,
+            duration: productDuration,
+            warranty: productWarranty,
+            qrisImageUrl: null,
+            qris_image_url: null,
+            qr_string: null,
+            payment_number: null,
+            expired_at: null,
+            total_payment: null,
+            fee: null,
+            payment_provider: "pakasir",
+            payment_provider_status: "FAILED",
+            payment_created_at: new Date().toISOString(),
+            payment_order_id: invoiceId,
+            invoice_url: invoiceUrl,
+            payment_error:
+              paymentResult?.data?.message || "Gagal membuat invoice pembayaran.",
+          } satisfies ProductDetailsShape),
         },
       });
 
@@ -273,17 +368,15 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
       ).trim() || null;
 
     const payment: PaymentData = {
-      order_id: String(paymentRaw.order_id),
-      amount: Number(paymentRaw.amount),
-      total_payment: Number(paymentRaw.total_payment),
-      fee: Number(paymentRaw.fee),
-      payment_number: String(paymentRaw.payment_number),
-      expired_at: String(paymentRaw.expired_at),
+      order_id: String(paymentRaw.order_id || invoiceId),
+      amount: Number(paymentRaw.amount || finalPrice),
+      total_payment: Number(paymentRaw.total_payment || finalPrice),
+      fee: Number(paymentRaw.fee || 0),
+      payment_number: String(paymentRaw.payment_number || ""),
+      expired_at: String(paymentRaw.expired_at || ""),
       qris_image_url: qrisImageUrl,
       qr_string: qrString,
     };
-
-    const invoiceUrl = `${appUrl}/cek-pesanan?invoice=${encodeURIComponent(invoiceId)}`;
 
     await prisma.transaction.update({
       where: { invoiceId },
@@ -305,17 +398,19 @@ export async function processCheckout(formData: FormData): Promise<CheckoutResul
           expired_at: payment.expired_at,
           total_payment: payment.total_payment,
           fee: payment.fee,
-        }),
+          payment_provider: "pakasir",
+          payment_provider_status: "PENDING",
+          payment_created_at: new Date().toISOString(),
+          payment_order_id: payment.order_id,
+          invoice_url: invoiceUrl,
+        } satisfies ProductDetailsShape),
       },
     });
 
     try {
       const waMessage = WATemplates.invoiceCreated({
         invoiceId,
-        productName:
-          variant && variant.name !== product.name
-            ? `${productName} - ${variantName}`
-            : productName,
+        productName: buildProductLabel(productName, variantName),
         targetId,
         price: finalPrice,
         paymentUrl: invoiceUrl,
